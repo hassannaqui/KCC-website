@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KCC Executive Authority</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
 
 <style>
 *{
@@ -17,39 +17,69 @@ scroll-behavior:smooth;
 }
 
 body{
-background:#0e1117;
+background:#0c0f14;
 color:white;
 overflow-x:hidden;
 }
 
-/* Floating blurred orbs */
+/* ===== EXECUTIVE LOADING INTRO ===== */
+.loader{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:#0c0f14;
+display:flex;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+z-index:9999;
+transition:opacity 1s ease, visibility 1s ease;
+}
+
+.loader h1{
+font-size:60px;
+letter-spacing:8px;
+font-weight:900;
+animation:fadePulse 2s infinite;
+}
+
+@keyframes fadePulse{
+0%{opacity:0.4;}
+50%{opacity:1;}
+100%{opacity:0.4;}
+}
+
+.loader.hidden{
+opacity:0;
+visibility:hidden;
+}
+
+/* Floating background */
 .orb{
 position:absolute;
 border-radius:50%;
 filter:blur(120px);
-opacity:0.25;
-animation:float 12s infinite ease-in-out alternate;
+opacity:0.15;
+animation:float 12s infinite alternate ease-in-out;
 }
 
 .orb1{
-width:300px;
-height:300px;
-background:#3a3f47;
-top:10%;
-left:10%;
+width:350px;height:350px;
+background:#2c313a;
+top:10%;left:15%;
 }
 
 .orb2{
-width:350px;
-height:350px;
-background:#2a2f36;
-bottom:10%;
-right:15%;
+width:400px;height:400px;
+background:#1e222a;
+bottom:10%;right:15%;
 animation-delay:3s;
 }
 
 @keyframes float{
-from{transform:translateY(0px);}
+from{transform:translateY(0);}
 to{transform:translateY(40px);}
 }
 
@@ -61,12 +91,20 @@ flex-direction:column;
 justify-content:center;
 align-items:center;
 text-align:center;
-z-index:2;
 position:relative;
+z-index:2;
+opacity:0;
+transform:translateY(40px);
+transition:1s ease;
+}
+
+.hero.show{
+opacity:1;
+transform:translateY(0);
 }
 
 .hero h1{
-font-size:85px;
+font-size:90px;
 font-weight:900;
 letter-spacing:6px;
 }
@@ -78,7 +116,7 @@ opacity:0.7;
 }
 
 .chairman{
-margin-top:15px;
+margin-top:20px;
 font-size:14px;
 letter-spacing:2px;
 opacity:0.5;
@@ -86,11 +124,11 @@ opacity:0.5;
 
 /* Arrow */
 .arrow{
-margin-top:50px;
-font-size:32px;
+margin-top:60px;
+font-size:28px;
 cursor:pointer;
 animation:bounce 2s infinite;
-opacity:0.7;
+opacity:0.6;
 }
 
 @keyframes bounce{
@@ -98,7 +136,7 @@ opacity:0.7;
 50%{transform:translateY(12px);}
 }
 
-/* Section */
+/* SECTION */
 .section{
 min-height:100vh;
 display:flex;
@@ -107,59 +145,71 @@ align-items:center;
 padding:40px 20px;
 position:relative;
 z-index:2;
+opacity:0;
+transform:translateY(40px);
+transition:1s ease;
 }
 
-/* Glass Card */
+.section.show{
+opacity:1;
+transform:translateY(0);
+}
+
+/* GLASS CARD */
 .glass{
-width:90%;
-max-width:700px;
-padding:60px 40px;
-border-radius:30px;
-background:rgba(255,255,255,0.05);
-backdrop-filter:blur(25px);
--webkit-backdrop-filter:blur(25px);
+width:95%;
+max-width:800px;
+padding:70px 60px;
+border-radius:35px;
+background:rgba(255,255,255,0.04);
+backdrop-filter:blur(30px);
+-webkit-backdrop-filter:blur(30px);
 border:1px solid rgba(255,255,255,0.08);
-box-shadow:0 20px 60px rgba(0,0,0,0.5);
+box-shadow:0 30px 80px rgba(0,0,0,0.6);
 text-align:center;
 }
 
-/* Headings */
 .glass h2{
-font-size:26px;
-margin-bottom:25px;
-letter-spacing:3px;
-font-weight:600;
+font-size:28px;
+letter-spacing:4px;
+font-weight:700;
+margin-bottom:40px;
 }
 
 .glass p{
-font-size:16px;
-line-height:1.8;
-opacity:0.75;
-margin-bottom:15px;
+font-size:18px;
+line-height:2;
+opacity:0.8;
+margin-bottom:25px;
 }
 
-/* Footer */
+/* FOOTER */
 footer{
 text-align:center;
-padding:40px;
+padding:50px;
 font-size:13px;
-opacity:0.5;
 letter-spacing:2px;
+opacity:0.5;
 }
 </style>
 </head>
 
 <body>
 
+<!-- EXECUTIVE LOADER -->
+<div class="loader" id="loader">
+<h1>KCC</h1>
+</div>
+
 <div class="orb orb1"></div>
 <div class="orb orb2"></div>
 
 <!-- HERO -->
-<div class="hero">
+<div class="hero" id="hero">
 <h1>KCC</h1>
 <h2>KABRISTAN CRICKET COUNCIL</h2>
 <div class="chairman">Under the Leadership of HASAN (Chairman)</div>
-<div class="arrow" onclick="document.getElementById('info').scrollIntoView({behavior:'smooth'})">↓</div>
+<div class="arrow" onclick="document.getElementById('info').scrollIntoView()">↓</div>
 </div>
 
 <!-- INFO -->
@@ -167,11 +217,9 @@ letter-spacing:2px;
 <div class="glass">
 <h2>OFFICIAL ANNOUNCEMENT</h2>
 <p>The plastic bat has been officially received at the venue.</p>
-<p>All preparations are completed under the authority of KCC Executive Body.</p>
+<p>All preparations have been completed under the authority of the KCC Executive Body.</p>
 
-<br>
-
-<h2>MATCH TIMING</h2>
+<h2 style="margin-top:60px;">MATCH TIMING</h2>
 <p>The Inaugural Match will commence sharply at 16:15.</p>
 </div>
 </div>
@@ -181,6 +229,24 @@ KABRISTAN CRICKET COUNCIL • 2026
 <br><br>
 Chairman: HASAN
 </footer>
+
+<script>
+/* Loading Intro */
+window.addEventListener("load", function(){
+setTimeout(function(){
+document.getElementById("loader").classList.add("hidden");
+document.getElementById("hero").classList.add("show");
+},1500);
+});
+
+/* Scroll Fade */
+window.addEventListener("scroll", function(){
+const section = document.getElementById("info");
+if(window.scrollY > 200){
+section.classList.add("show");
+}
+});
+</script>
 
 </body>
 </html>
