@@ -3,26 +3,42 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KCC - Kabristan Cricket Council</title>
+<title>KCC Executive Authority</title>
 
-<!-- Google Font -->
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
 <style>
 *{
 margin:0;
 padding:0;
 box-sizing:border-box;
-font-family:'Poppins',sans-serif;
+font-family:'Inter',sans-serif;
+scroll-behavior:smooth;
 }
 
 body{
-background:linear-gradient(135deg,#0f0f0f,#1a1a1a,#000);
+height:100vh;
+background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
 color:white;
 overflow-x:hidden;
 }
 
-/* Hero Section */
+/* Floating Glass Container */
+.glass{
+background:rgba(255,255,255,0.08);
+backdrop-filter:blur(20px);
+-webkit-backdrop-filter:blur(20px);
+border-radius:25px;
+border:1px solid rgba(255,255,255,0.15);
+box-shadow:0 8px 32px rgba(0,0,0,0.3);
+padding:40px;
+width:90%;
+max-width:600px;
+margin:auto;
+text-align:center;
+}
+
+/* Hero */
 .hero{
 height:100vh;
 display:flex;
@@ -33,122 +49,88 @@ text-align:center;
 }
 
 .hero h1{
-font-size:70px;
+font-size:80px;
 font-weight:800;
-background:linear-gradient(90deg,#00ffcc,#00ccff,#ff00cc);
--webkit-background-clip:text;
-color:transparent;
+letter-spacing:4px;
 }
 
 .hero h2{
 font-size:22px;
-margin-top:15px;
-color:#ccc;
+margin-top:10px;
+opacity:0.8;
 }
 
 .hero p{
-margin-top:10px;
-font-size:18px;
-color:#888;
+margin-top:15px;
+font-size:16px;
+opacity:0.6;
 }
 
-/* Button */
-.btn{
-margin-top:30px;
-padding:15px 35px;
-border:none;
-border-radius:30px;
-background:linear-gradient(90deg,#00ffcc,#00ccff);
-color:black;
-font-size:18px;
-font-weight:600;
+/* Down Arrow */
+.arrow{
+margin-top:40px;
+font-size:40px;
+animation:bounce 1.5s infinite;
 cursor:pointer;
-transition:0.3s;
 }
 
-.btn:hover{
-transform:scale(1.1);
-box-shadow:0 0 20px #00ffcc;
+@keyframes bounce{
+0%,100%{transform:translateY(0);}
+50%{transform:translateY(10px);}
 }
 
 /* Section */
 .section{
-padding:80px 20px;
-text-align:center;
+padding:100px 20px;
+display:flex;
+justify-content:center;
 }
 
 .section h2{
-font-size:40px;
-margin-bottom:30px;
-color:#00ffcc;
+font-size:28px;
+margin-bottom:20px;
 }
 
-.card-container{
-display:flex;
-flex-wrap:wrap;
-justify-content:center;
-gap:30px;
-}
-
-.card{
-background:rgba(255,255,255,0.05);
-backdrop-filter:blur(10px);
-padding:30px;
-width:280px;
-border-radius:20px;
-transition:0.3s;
-border:1px solid rgba(255,255,255,0.1);
-}
-
-.card:hover{
-transform:translateY(-10px);
-box-shadow:0 0 25px #00ffcc;
-}
-
-.card h3{
-font-size:22px;
-margin-bottom:10px;
-color:#00ccff;
-}
-
+/* Footer */
 footer{
 text-align:center;
-padding:20px;
-background:#000;
-color:#777;
+padding:30px;
+font-size:14px;
+opacity:0.6;
 }
 </style>
 </head>
 
 <body>
 
+<!-- HERO -->
 <div class="hero">
 <h1>KCC</h1>
 <h2>KABRISTAN CRICKET COUNCIL</h2>
-<p>Made by HASAN (HONORABLE CHAIRMAN)</p>
-<button class="btn">Enter the Arena</button>
+<p>Under the leadership of HASAN (HONORABLE CHAIRMAN)</p>
+<p>Official Authority Managed by HASAN (HONORABLE CHAIRMAN)</p>
+<div class="arrow" onclick="document.getElementById('info').scrollIntoView()">↓</div>
 </div>
 
-<div class="section">
-<h2>Upcoming Events</h2>
-<div class="card-container">
-<div class="card">
-<h3>Inaugural Match</h3>
-<p>Match starts at 16:15 sharp. Be ready!</p>
-</div>
-<div class="card">
-<h3>Tournament 2026</h3>
-<p>Registrations opening soon.</p>
-</div>
-<div class="card">
-<h3>KCC League</h3>
-<p>Where legends are born.</p>
-</div>
+<!-- INFO SECTION -->
+<div class="section" id="info">
+<div class="glass">
+<h2>OFFICIAL ANNOUNCEMENT</h2>
+<p>This official notice is released under the supervision of HASAN (HONORABLE CHAIRMAN).</p>
+<p>The plastic bat has been officially received at the venue.</p>
+
+<br><br>
+
+<h2>MATCH TIMING</h2>
+<p>The Inaugural Match will begin at 16:15 sharp.</p>
+<p>Authorized and approved by HASAN (HONORABLE CHAIRMAN).</p>
 </div>
 </div>
 
 <footer>
-© 2026 Kabristan Cricket Council | All Rights Reserved
+© 2026 Kabristan Cricket Council  
+<br>
+Executive Authority Head: HASAN (HONORABLE CHAIRMAN)
 </footer>
 
 </body>
