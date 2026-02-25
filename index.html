@@ -1,252 +1,1411 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KCC Executive Authority</title>
+import json
+import os
+from datetime import datetime
+from collections import defaultdict
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+# ==================== DATA FILE ====================
+DATA_FILE = "gully_cricket_data.json"
 
-<style>
-*{
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:'Inter',sans-serif;
-scroll-behavior:smooth;
-}
+# ==================== DEFAULT DATA STRUCTURE ====================
+def get_default_data():
+    return {
+        "team_name": "Gully Warriors",
+        "players": {},
+        "matches": [],
+        "expenses": [],
+        "practice_sessions": [],
+        "announcements": [],
+        "next_player_id": 1,
+        "next_match_id": 1
+    }
 
-body{
-background:#0c0f14;
-color:white;
-overflow-x:hidden;
-}
+# ==================== FILE OPERATIONS ====================
+def load_data():
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            return get_default_data()
+    return get_default_data()
 
-/* ===== EXECUTIVE LOADING INTRO ===== */
-.loader{
-position:fixed;
-top:0;
-left:0;
-width:100%;
-height:100%;
-background:#0c0f14;
-display:flex;
-justify-content:center;
-align-items:center;
-flex-direction:column;
-z-index:9999;
-transition:opacity 1s ease, visibility 1s ease;
-}
+def save_data(data):
+    with open(DATA_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
 
-.loader h1{
-font-size:60px;
-letter-spacing:8px;
-font-weight:900;
-animation:fadePulse 2s infinite;
-}
+# ==================== UTILITY FUNCTIONS ====================
+def clear_screen():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
-@keyframes fadePulse{
-0%{opacity:0.4;}
-50%{opacity:1;}
-100%{opacity:0.4;}
-}
+def press_enter():
+    input("\n🔵 Press Enter to continue...")
 
-.loader.hidden{
-opacity:0;
-visibility:hidden;
-}
+def print_header(title):
+    print("\n" + "="*60)
+    print(f"🏏 {title.center(56)} 🏏")
+    print("="*60)
 
-/* Floating background */
-.orb{
-position:absolute;
-border-radius:50%;
-filter:blur(120px);
-opacity:0.15;
-animation:float 12s infinite alternate ease-in-out;
-}
+def print_menu(title, options):
+    print_header(title)
+    for i, option in enumerate(options, 1):
+        print(f"  {i}. {option}")
+    print(f"  0. Back / Exit")
+    print("-"*60)
 
-.orb1{
-width:350px;height:350px;
-background:#2c313a;
-top:10%;left:15%;
-}
+def get_choice(max_val):
+    while True:
+        try:
+            choice = int(input("👉 Enter your choice: "))
+            if 0 <= choice <= max_val:
+                return choice
+            print("❌ Invalid choice! Try again.")
+        except ValueError:
+            print("❌ Please enter a number!")
 
-.orb2{
-width:400px;height:400px;
-background:#1e222a;
-bottom:10%;right:15%;
-animation-delay:3s;
-}
+def get_input(prompt, required=True):
+    while True:
+        value = input(f"📝 {prompt}: ").strip()
+        if value or not required:
+            return value
+        print("❌ This field is required!")
 
-@keyframes float{
-from{transform:translateY(0);}
-to{transform:translateY(40px);}
-}
+def get_number(prompt, allow_float=False):
+    while True:
+        try:
+            value = input(f"📝 {prompt}: ").strip()
+            return float(value) if allow_float else int(value)
+        except ValueError:
+            print("❌ Please enter a valid number!")
 
-/* HERO */
-.hero{
-height:100vh;
-display:flex;
-flex-direction:column;
-justify-content:center;
-align-items:center;
-text-align:center;
-position:relative;
-z-index:2;
-opacity:0;
-transform:translateY(40px);
-transition:1s ease;
-}
+# ==================== PLAYER MANAGEMENT ====================
+def add_player(data):
+    print_header("ADD NEW PLAYER")
+    
+    player_id = str(data["next_player_id"])
+    data["next_player_id"] += 1
+    
+    player = {
+        "id": player_id,
+        "name": get_input("Player Name"),
+        "age": get_number("Age"),
+        "phone": get_input("Phone Number"),
+        "role": get_input("Role (Batsman/Bowler/All-Rounder/Wicket-Keeper)"),
+        "batting_style": get_input("Batting Style (Right/Left)"),
+        "bowling_style": get_input("Bowling Style (Fast/Medium/Spin/None)"),
+        "jersey_number": get_input("Jersey Number", required=False) or "N/A",
+        "joined_date": datetime.now().strftime("%Y-%m-%d"),
+        "stats": {
+            "matches": 0,
+            "runs": 0,
+            "balls_faced": 0,
+            "fours": 0,
+            "sixes": 0,
+            "highest_score": 0,
+            "fifties": 0,
+            "hundreds": 0,
+            "not_outs": 0,
+            "wickets": 0,
+            "balls_bowled": 0,
+            "runs_given": 0,
+            "best_bowling": "0/0",
+            "catches": 0,
+            "stumpings": 0,
+            "run_outs": 0
+        },
+        "attendance": [],
+        "contributions": 0
+    }
+    
+    data["players"][player_id] = player
+    save_data(data)
+    print(f"\n✅ Player '{player['name']}' added successfully with ID: {player_id}")
 
-.hero.show{
-opacity:1;
-transform:translateY(0);
-}
+def view_all_players(data):
+    print_header("ALL PLAYERS")
+    
+    if not data["players"]:
+        print("❌ No players registered yet!")
+        return
+    
+    print(f"{'ID':<4} {'Name':<20} {'Role':<15} {'Matches':<8} {'Runs':<8} {'Wickets':<8}")
+    print("-"*70)
+    
+    for pid, player in data["players"].items():
+        stats = player["stats"]
+        print(f"{pid:<4} {player['name']:<20} {player['role']:<15} "
+              f"{stats['matches']:<8} {stats['runs']:<8} {stats['wickets']:<8}")
 
-.hero h1{
-font-size:90px;
-font-weight:900;
-letter-spacing:6px;
-}
+def view_player_details(data):
+    print_header("PLAYER DETAILS")
+    view_all_players(data)
+    
+    if not data["players"]:
+        return
+    
+    pid = get_input("\nEnter Player ID to view details")
+    
+    if pid not in data["players"]:
+        print("❌ Player not found!")
+        return
+    
+    player = data["players"][pid]
+    stats = player["stats"]
+    
+    print("\n" + "="*50)
+    print(f"🏏 PLAYER PROFILE: {player['name']}")
+    print("="*50)
+    print(f"📋 ID: {player['id']}")
+    print(f"📞 Phone: {player['phone']}")
+    print(f"🎂 Age: {player['age']}")
+    print(f"👕 Jersey: {player['jersey_number']}")
+    print(f"🎯 Role: {player['role']}")
+    print(f"🏏 Batting: {player['batting_style']} Handed")
+    print(f"🎳 Bowling: {player['bowling_style']}")
+    print(f"📅 Joined: {player['joined_date']}")
+    
+    print("\n📊 BATTING STATISTICS:")
+    print("-"*40)
+    print(f"  Matches: {stats['matches']}")
+    print(f"  Runs: {stats['runs']}")
+    print(f"  Balls Faced: {stats['balls_faced']}")
+    print(f"  Highest Score: {stats['highest_score']}")
+    print(f"  4s/6s: {stats['fours']}/{stats['sixes']}")
+    print(f"  50s/100s: {stats['fifties']}/{stats['hundreds']}")
+    print(f"  Not Outs: {stats['not_outs']}")
+    
+    # Calculate batting average and strike rate
+    innings = stats['matches'] - stats['not_outs']
+    avg = stats['runs'] / innings if innings > 0 else stats['runs']
+    sr = (stats['runs'] / stats['balls_faced'] * 100) if stats['balls_faced'] > 0 else 0
+    print(f"  Average: {avg:.2f}")
+    print(f"  Strike Rate: {sr:.2f}")
+    
+    print("\n🎳 BOWLING STATISTICS:")
+    print("-"*40)
+    print(f"  Wickets: {stats['wickets']}")
+    print(f"  Balls Bowled: {stats['balls_bowled']}")
+    print(f"  Runs Given: {stats['runs_given']}")
+    print(f"  Best Bowling: {stats['best_bowling']}")
+    
+    # Calculate bowling average and economy
+    bowl_avg = stats['runs_given'] / stats['wickets'] if stats['wickets'] > 0 else 0
+    overs = stats['balls_bowled'] / 6
+    economy = stats['runs_given'] / overs if overs > 0 else 0
+    print(f"  Average: {bowl_avg:.2f}")
+    print(f"  Economy: {economy:.2f}")
+    
+    print("\n🧤 FIELDING STATISTICS:")
+    print("-"*40)
+    print(f"  Catches: {stats['catches']}")
+    print(f"  Stumpings: {stats['stumpings']}")
+    print(f"  Run Outs: {stats['run_outs']}")
+    
+    print(f"\n💰 Total Contribution: ₹{player['contributions']}")
 
-.hero h2{
-margin-top:10px;
-font-weight:400;
-opacity:0.7;
-}
+def edit_player(data):
+    print_header("EDIT PLAYER")
+    view_all_players(data)
+    
+    if not data["players"]:
+        return
+    
+    pid = get_input("\nEnter Player ID to edit")
+    
+    if pid not in data["players"]:
+        print("❌ Player not found!")
+        return
+    
+    player = data["players"][pid]
+    print(f"\n📝 Editing: {player['name']} (Leave blank to keep current value)")
+    
+    name = input(f"Name [{player['name']}]: ").strip()
+    if name:
+        player['name'] = name
+    
+    phone = input(f"Phone [{player['phone']}]: ").strip()
+    if phone:
+        player['phone'] = phone
+    
+    age = input(f"Age [{player['age']}]: ").strip()
+    if age:
+        player['age'] = int(age)
+    
+    role = input(f"Role [{player['role']}]: ").strip()
+    if role:
+        player['role'] = role
+    
+    jersey = input(f"Jersey [{player['jersey_number']}]: ").strip()
+    if jersey:
+        player['jersey_number'] = jersey
+    
+    save_data(data)
+    print("✅ Player updated successfully!")
 
-.chairman{
-margin-top:20px;
-font-size:14px;
-letter-spacing:2px;
-opacity:0.5;
-}
+def remove_player(data):
+    print_header("REMOVE PLAYER")
+    view_all_players(data)
+    
+    if not data["players"]:
+        return
+    
+    pid = get_input("\nEnter Player ID to remove")
+    
+    if pid not in data["players"]:
+        print("❌ Player not found!")
+        return
+    
+    player_name = data["players"][pid]["name"]
+    confirm = input(f"⚠️ Are you sure you want to remove '{player_name}'? (yes/no): ").lower()
+    
+    if confirm == 'yes':
+        del data["players"][pid]
+        save_data(data)
+        print(f"✅ Player '{player_name}' removed successfully!")
+    else:
+        print("❌ Cancelled!")
 
-/* Arrow */
-.arrow{
-margin-top:60px;
-font-size:28px;
-cursor:pointer;
-animation:bounce 2s infinite;
-opacity:0.6;
-}
+def player_management(data):
+    while True:
+        options = [
+            "Add New Player",
+            "View All Players",
+            "View Player Details",
+            "Edit Player",
+            "Remove Player"
+        ]
+        print_menu("PLAYER MANAGEMENT", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            break
+        elif choice == 1:
+            add_player(data)
+        elif choice == 2:
+            view_all_players(data)
+        elif choice == 3:
+            view_player_details(data)
+        elif choice == 4:
+            edit_player(data)
+        elif choice == 5:
+            remove_player(data)
+        
+        press_enter()
 
-@keyframes bounce{
-0%,100%{transform:translateY(0);}
-50%{transform:translateY(12px);}
-}
+# ==================== MATCH MANAGEMENT ====================
+def schedule_match(data):
+    print_header("SCHEDULE NEW MATCH")
+    
+    match_id = str(data["next_match_id"])
+    data["next_match_id"] += 1
+    
+    match = {
+        "id": match_id,
+        "opponent": get_input("Opponent Team Name"),
+        "venue": get_input("Venue"),
+        "date": get_input("Date (DD-MM-YYYY)"),
+        "time": get_input("Time"),
+        "overs": get_number("Number of Overs"),
+        "status": "scheduled",
+        "toss": "",
+        "toss_decision": "",
+        "our_batting": [],
+        "our_bowling": [],
+        "our_score": "",
+        "opponent_score": "",
+        "result": "",
+        "man_of_match": "",
+        "playing_xi": [],
+        "notes": ""
+    }
+    
+    data["matches"].append(match)
+    save_data(data)
+    print(f"\n✅ Match against '{match['opponent']}' scheduled! Match ID: {match_id}")
 
-/* SECTION */
-.section{
-min-height:100vh;
-display:flex;
-justify-content:center;
-align-items:center;
-padding:40px 20px;
-position:relative;
-z-index:2;
-opacity:0;
-transform:translateY(40px);
-transition:1s ease;
-}
+def view_matches(data, status_filter=None):
+    print_header("MATCHES")
+    
+    matches = data["matches"]
+    if status_filter:
+        matches = [m for m in matches if m["status"] == status_filter]
+    
+    if not matches:
+        print("❌ No matches found!")
+        return
+    
+    print(f"{'ID':<4} {'Opponent':<20} {'Date':<12} {'Venue':<15} {'Status':<12}")
+    print("-"*70)
+    
+    for match in matches:
+        print(f"{match['id']:<4} {match['opponent']:<20} {match['date']:<12} "
+              f"{match['venue']:<15} {match['status']:<12}")
 
-.section.show{
-opacity:1;
-transform:translateY(0);
-}
+def select_playing_xi(data):
+    print_header("SELECT PLAYING XI")
+    
+    scheduled_matches = [m for m in data["matches"] if m["status"] == "scheduled"]
+    if not scheduled_matches:
+        print("❌ No scheduled matches!")
+        return
+    
+    for match in scheduled_matches:
+        print(f"ID: {match['id']} | vs {match['opponent']} on {match['date']}")
+    
+    mid = get_input("\nEnter Match ID")
+    match = next((m for m in data["matches"] if m["id"] == mid), None)
+    
+    if not match:
+        print("❌ Match not found!")
+        return
+    
+    print("\nAvailable Players:")
+    view_all_players(data)
+    
+    print("\nEnter 11 Player IDs (comma-separated):")
+    player_ids = input("👉 ").split(",")
+    player_ids = [p.strip() for p in player_ids]
+    
+    valid_players = []
+    for pid in player_ids:
+        if pid in data["players"]:
+            valid_players.append(pid)
+    
+    if len(valid_players) < 11:
+        print(f"⚠️ Only {len(valid_players)} valid players selected. Need 11!")
+        confirm = input("Continue anyway? (yes/no): ").lower()
+        if confirm != 'yes':
+            return
+    
+    match["playing_xi"] = valid_players
+    save_data(data)
+    
+    print("\n✅ Playing XI Selected:")
+    for pid in valid_players:
+        print(f"  - {data['players'][pid]['name']}")
 
-/* GLASS CARD */
-.glass{
-width:95%;
-max-width:800px;
-padding:70px 60px;
-border-radius:35px;
-background:rgba(255,255,255,0.04);
-backdrop-filter:blur(30px);
--webkit-backdrop-filter:blur(30px);
-border:1px solid rgba(255,255,255,0.08);
-box-shadow:0 30px 80px rgba(0,0,0,0.6);
-text-align:center;
-}
+def record_toss(data):
+    print_header("RECORD TOSS")
+    
+    scheduled_matches = [m for m in data["matches"] if m["status"] == "scheduled"]
+    if not scheduled_matches:
+        print("❌ No scheduled matches!")
+        return
+    
+    for match in scheduled_matches:
+        print(f"ID: {match['id']} | vs {match['opponent']} on {match['date']}")
+    
+    mid = get_input("\nEnter Match ID")
+    match = next((m for m in data["matches"] if m["id"] == mid), None)
+    
+    if not match:
+        print("❌ Match not found!")
+        return
+    
+    print("\nWho won the toss?")
+    print("1. Our Team")
+    print("2. Opponent")
+    toss_winner = get_choice(2)
+    
+    match["toss"] = "won" if toss_winner == 1 else "lost"
+    
+    print("\nDecision?")
+    print("1. Batting")
+    print("2. Bowling")
+    decision = get_choice(2)
+    
+    match["toss_decision"] = "bat" if decision == 1 else "bowl"
+    match["status"] = "ongoing"
+    
+    save_data(data)
+    print("✅ Toss recorded! Match is now LIVE!")
 
-.glass h2{
-font-size:28px;
-letter-spacing:4px;
-font-weight:700;
-margin-bottom:40px;
-}
+def record_batting_score(data):
+    print_header("RECORD BATTING SCORE")
+    
+    ongoing_matches = [m for m in data["matches"] if m["status"] == "ongoing"]
+    if not ongoing_matches:
+        print("❌ No ongoing matches!")
+        return
+    
+    for match in ongoing_matches:
+        print(f"ID: {match['id']} | vs {match['opponent']}")
+    
+    mid = get_input("\nEnter Match ID")
+    match = next((m for m in data["matches"] if m["id"] == mid), None)
+    
+    if not match:
+        print("❌ Match not found!")
+        return
+    
+    print("\n📊 Enter batting scores for each player:")
+    print("(Enter player ID, runs, balls, 4s, 6s, out status)")
+    
+    batting_scores = []
+    total_runs = 0
+    total_wickets = 0
+    total_balls = 0
+    total_extras = 0
+    
+    print("\n🏏 Enter 'done' when finished\n")
+    
+    while True:
+        pid = input("Player ID (or 'done'): ").strip()
+        if pid.lower() == 'done':
+            break
+        
+        if pid not in data["players"]:
+            print("❌ Invalid Player ID!")
+            continue
+        
+        player = data["players"][pid]
+        print(f"Recording for: {player['name']}")
+        
+        runs = get_number("Runs scored")
+        balls = get_number("Balls faced")
+        fours = get_number("Fours")
+        sixes = get_number("Sixes")
+        out = input("Out? (yes/no): ").lower() == 'yes'
+        
+        batting_entry = {
+            "player_id": pid,
+            "player_name": player['name'],
+            "runs": runs,
+            "balls": balls,
+            "fours": fours,
+            "sixes": sixes,
+            "out": out
+        }
+        batting_scores.append(batting_entry)
+        
+        # Update player stats
+        player["stats"]["matches"] += 1
+        player["stats"]["runs"] += runs
+        player["stats"]["balls_faced"] += balls
+        player["stats"]["fours"] += fours
+        player["stats"]["sixes"] += sixes
+        if runs > player["stats"]["highest_score"]:
+            player["stats"]["highest_score"] = runs
+        if runs >= 100:
+            player["stats"]["hundreds"] += 1
+        elif runs >= 50:
+            player["stats"]["fifties"] += 1
+        if not out:
+            player["stats"]["not_outs"] += 1
+        
+        total_runs += runs
+        total_balls += balls
+        if out:
+            total_wickets += 1
+        
+        print(f"✅ {player['name']}: {runs}({balls}) recorded!\n")
+    
+    total_extras = get_number("Total Extras (wides, no-balls, byes, leg-byes)")
+    total_runs += total_extras
+    
+    overs = total_balls // 6
+    balls = total_balls % 6
+    
+    match["our_batting"] = batting_scores
+    match["our_score"] = f"{total_runs}/{total_wickets} ({overs}.{balls} overs)"
+    
+    save_data(data)
+    print(f"\n✅ Batting score recorded: {match['our_score']}")
 
-.glass p{
-font-size:18px;
-line-height:2;
-opacity:0.8;
-margin-bottom:25px;
-}
+def record_bowling_figures(data):
+    print_header("RECORD BOWLING FIGURES")
+    
+    ongoing_matches = [m for m in data["matches"] if m["status"] == "ongoing"]
+    if not ongoing_matches:
+        print("❌ No ongoing matches!")
+        return
+    
+    for match in ongoing_matches:
+        print(f"ID: {match['id']} | vs {match['opponent']}")
+    
+    mid = get_input("\nEnter Match ID")
+    match = next((m for m in data["matches"] if m["id"] == mid), None)
+    
+    if not match:
+        print("❌ Match not found!")
+        return
+    
+    print("\n🎳 Enter bowling figures:")
+    print("(Enter player ID, overs, maidens, runs, wickets)")
+    
+    bowling_figures = []
+    
+    print("\n🎳 Enter 'done' when finished\n")
+    
+    while True:
+        pid = input("Player ID (or 'done'): ").strip()
+        if pid.lower() == 'done':
+            break
+        
+        if pid not in data["players"]:
+            print("❌ Invalid Player ID!")
+            continue
+        
+        player = data["players"][pid]
+        print(f"Recording for: {player['name']}")
+        
+        overs = get_number("Overs bowled", allow_float=True)
+        maidens = get_number("Maidens")
+        runs = get_number("Runs given")
+        wickets = get_number("Wickets taken")
+        
+        bowling_entry = {
+            "player_id": pid,
+            "player_name": player['name'],
+            "overs": overs,
+            "maidens": maidens,
+            "runs": runs,
+            "wickets": wickets
+        }
+        bowling_figures.append(bowling_entry)
+        
+        # Update player stats
+        balls_bowled = int(overs) * 6 + int((overs % 1) * 10)
+        player["stats"]["balls_bowled"] += balls_bowled
+        player["stats"]["runs_given"] += runs
+        player["stats"]["wickets"] += wickets
+        
+        # Update best bowling
+        current_best = player["stats"]["best_bowling"].split("/")
+        if wickets > int(current_best[0]) or (wickets == int(current_best[0]) and runs < int(current_best[1])):
+            player["stats"]["best_bowling"] = f"{wickets}/{runs}"
+        
+        print(f"✅ {player['name']}: {wickets}/{runs} recorded!\n")
+    
+    match["our_bowling"] = bowling_figures
+    
+    # Record opponent score
+    match["opponent_score"] = get_input("Enter opponent's final score (e.g., 120/8 in 15.3 overs)")
+    
+    save_data(data)
+    print("✅ Bowling figures recorded!")
 
-/* FOOTER */
-footer{
-text-align:center;
-padding:50px;
-font-size:13px;
-letter-spacing:2px;
-opacity:0.5;
-}
-</style>
-</head>
+def record_fielding_stats(data):
+    print_header("RECORD FIELDING STATS")
+    
+    ongoing_matches = [m for m in data["matches"] if m["status"] == "ongoing"]
+    if not ongoing_matches:
+        print("❌ No ongoing matches!")
+        return
+    
+    for match in ongoing_matches:
+        print(f"ID: {match['id']} | vs {match['opponent']}")
+    
+    mid = get_input("\nEnter Match ID")
+    match = next((m for m in data["matches"] if m["id"] == mid), None)
+    
+    if not match:
+        print("❌ Match not found!")
+        return
+    
+    print("\n🧤 Enter fielding stats:")
+    print("Enter 'done' when finished\n")
+    
+    while True:
+        pid = input("Player ID (or 'done'): ").strip()
+        if pid.lower() == 'done':
+            break
+        
+        if pid not in data["players"]:
+            print("❌ Invalid Player ID!")
+            continue
+        
+        player = data["players"][pid]
+        print(f"Recording for: {player['name']}")
+        
+        catches = get_number("Catches")
+        stumpings = get_number("Stumpings")
+        run_outs = get_number("Run Outs")
+        
+        player["stats"]["catches"] += catches
+        player["stats"]["stumpings"] += stumpings
+        player["stats"]["run_outs"] += run_outs
+        
+        print(f"✅ Fielding stats recorded!\n")
+    
+    save_data(data)
 
-<body>
+def complete_match(data):
+    print_header("COMPLETE MATCH")
+    
+    ongoing_matches = [m for m in data["matches"] if m["status"] == "ongoing"]
+    if not ongoing_matches:
+        print("❌ No ongoing matches!")
+        return
+    
+    for match in ongoing_matches:
+        print(f"ID: {match['id']} | vs {match['opponent']}")
+        print(f"   Our Score: {match['our_score']}")
+        print(f"   Opponent Score: {match['opponent_score']}")
+    
+    mid = get_input("\nEnter Match ID")
+    match = next((m for m in data["matches"] if m["id"] == mid), None)
+    
+    if not match:
+        print("❌ Match not found!")
+        return
+    
+    print("\nMatch Result:")
+    print("1. Won")
+    print("2. Lost")
+    print("3. Tie")
+    print("4. No Result")
+    result_choice = get_choice(4)
+    
+    results = {1: "won", 2: "lost", 3: "tie", 4: "no_result"}
+    match["result"] = results[result_choice]
+    
+    if result_choice in [1, 2]:
+        margin = get_input("Win/Loss Margin (e.g., '5 wickets' or '20 runs')")
+        match["result"] += f" by {margin}"
+    
+    # Man of the match
+    print("\n🏆 Man of the Match:")
+    view_all_players(data)
+    mom_id = get_input("Enter Player ID for MoM (or leave blank)")
+    if mom_id and mom_id in data["players"]:
+        match["man_of_match"] = data["players"][mom_id]["name"]
+    
+    match["notes"] = get_input("Match Notes (optional)", required=False)
+    match["status"] = "completed"
+    
+    save_data(data)
+    print("\n✅ Match completed and recorded!")
 
-<!-- EXECUTIVE LOADER -->
-<div class="loader" id="loader">
-<h1>KCC</h1>
-</div>
+def view_match_details(data):
+    print_header("MATCH DETAILS")
+    
+    if not data["matches"]:
+        print("❌ No matches found!")
+        return
+    
+    view_matches(data)
+    mid = get_input("\nEnter Match ID to view details")
+    match = next((m for m in data["matches"] if m["id"] == mid), None)
+    
+    if not match:
+        print("❌ Match not found!")
+        return
+    
+    print("\n" + "="*60)
+    print(f"🏏 MATCH #{match['id']}: {data['team_name']} vs {match['opponent']}")
+    print("="*60)
+    print(f"📅 Date: {match['date']} | ⏰ Time: {match['time']}")
+    print(f"📍 Venue: {match['venue']}")
+    print(f"🎯 Overs: {match['overs']}")
+    print(f"📊 Status: {match['status'].upper()}")
+    
+    if match["toss"]:
+        print(f"🪙 Toss: {match['toss'].upper()} - chose to {match['toss_decision']}")
+    
+    if match["playing_xi"]:
+        print("\n👥 Playing XI:")
+        for i, pid in enumerate(match["playing_xi"], 1):
+            name = data["players"].get(pid, {}).get("name", "Unknown")
+            print(f"   {i}. {name}")
+    
+    if match["our_score"]:
+        print(f"\n🏏 Our Score: {match['our_score']}")
+    if match["opponent_score"]:
+        print(f"🏏 Opponent Score: {match['opponent_score']}")
+    
+    if match["our_batting"]:
+        print("\n📊 BATTING SCORECARD:")
+        print("-"*50)
+        print(f"{'Batsman':<20} {'R':<5} {'B':<5} {'4s':<4} {'6s':<4} {'SR':<8}")
+        print("-"*50)
+        for bat in match["our_batting"]:
+            sr = (bat['runs'] / bat['balls'] * 100) if bat['balls'] > 0 else 0
+            status = "" if bat['out'] else "*"
+            print(f"{bat['player_name']}{status:<19} {bat['runs']:<5} {bat['balls']:<5} "
+                  f"{bat['fours']:<4} {bat['sixes']:<4} {sr:.2f}")
+    
+    if match["our_bowling"]:
+        print("\n🎳 BOWLING FIGURES:")
+        print("-"*50)
+        print(f"{'Bowler':<20} {'O':<6} {'M':<4} {'R':<5} {'W':<4} {'Econ':<8}")
+        print("-"*50)
+        for bowl in match["our_bowling"]:
+            econ = bowl['runs'] / bowl['overs'] if bowl['overs'] > 0 else 0
+            print(f"{bowl['player_name']:<20} {bowl['overs']:<6} {bowl['maidens']:<4} "
+                  f"{bowl['runs']:<5} {bowl['wickets']:<4} {econ:.2f}")
+    
+    if match["result"]:
+        print(f"\n🏆 Result: {match['result'].upper()}")
+    if match["man_of_match"]:
+        print(f"⭐ Man of the Match: {match['man_of_match']}")
+    if match["notes"]:
+        print(f"📝 Notes: {match['notes']}")
 
-<div class="orb orb1"></div>
-<div class="orb orb2"></div>
+def match_management(data):
+    while True:
+        options = [
+            "Schedule New Match",
+            "View All Matches",
+            "View Scheduled Matches",
+            "View Completed Matches",
+            "Select Playing XI",
+            "Record Toss",
+            "Record Batting Score",
+            "Record Bowling Figures",
+            "Record Fielding Stats",
+            "Complete Match",
+            "View Match Details"
+        ]
+        print_menu("MATCH MANAGEMENT", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            break
+        elif choice == 1:
+            schedule_match(data)
+        elif choice == 2:
+            view_matches(data)
+        elif choice == 3:
+            view_matches(data, "scheduled")
+        elif choice == 4:
+            view_matches(data, "completed")
+        elif choice == 5:
+            select_playing_xi(data)
+        elif choice == 6:
+            record_toss(data)
+        elif choice == 7:
+            record_batting_score(data)
+        elif choice == 8:
+            record_bowling_figures(data)
+        elif choice == 9:
+            record_fielding_stats(data)
+        elif choice == 10:
+            complete_match(data)
+        elif choice == 11:
+            view_match_details(data)
+        
+        press_enter()
 
-<!-- HERO -->
-<div class="hero" id="hero">
-<h1>KCC</h1>
-<h2>KABRISTAN CRICKET COUNCIL</h2>
-<div class="chairman">GUIDED BY HASAN (Chairman)</div>
-<div class="arrow" onclick="document.getElementById('info').scrollIntoView()">↓</div>
-</div>
+# ==================== STATISTICS & LEADERBOARDS ====================
+def batting_leaderboard(data):
+    print_header("BATTING LEADERBOARD")
+    
+    if not data["players"]:
+        print("❌ No players found!")
+        return
+    
+    players_list = []
+    for pid, player in data["players"].items():
+        stats = player["stats"]
+        innings = stats['matches'] - stats['not_outs']
+        avg = stats['runs'] / innings if innings > 0 else stats['runs']
+        sr = (stats['runs'] / stats['balls_faced'] * 100) if stats['balls_faced'] > 0 else 0
+        players_list.append({
+            "name": player['name'],
+            "matches": stats['matches'],
+            "runs": stats['runs'],
+            "avg": avg,
+            "sr": sr,
+            "hs": stats['highest_score'],
+            "50s": stats['fifties'],
+            "100s": stats['hundreds']
+        })
+    
+    # Sort by runs
+    players_list.sort(key=lambda x: x['runs'], reverse=True)
+    
+    print(f"{'#':<3} {'Name':<18} {'M':<4} {'Runs':<6} {'Avg':<7} {'SR':<7} {'HS':<5} {'50/100':<8}")
+    print("-"*70)
+    
+    for i, p in enumerate(players_list[:15], 1):
+        print(f"{i:<3} {p['name']:<18} {p['matches']:<4} {p['runs']:<6} {p['avg']:<7.2f} "
+              f"{p['sr']:<7.2f} {p['hs']:<5} {p['50s']}/{p['100s']}")
 
-<!-- INFO -->
-<div class="section" id="info">
-<div class="glass">
-<h2>ANNOUNCEMENT</h2>
-<p>MAYBE THERE IS NO ARRANGEMENT OF BAT TOMMOROW SO TOMORROW MATCH SHOULD BE POSTPONED..</p>
-<p>All preparations have been completed under the authority of the KCC Executive Body.</p>
+def bowling_leaderboard(data):
+    print_header("BOWLING LEADERBOARD")
+    
+    if not data["players"]:
+        print("❌ No players found!")
+        return
+    
+    players_list = []
+    for pid, player in data["players"].items():
+        stats = player["stats"]
+        if stats['wickets'] > 0:
+            avg = stats['runs_given'] / stats['wickets']
+            overs = stats['balls_bowled'] / 6
+            econ = stats['runs_given'] / overs if overs > 0 else 0
+            players_list.append({
+                "name": player['name'],
+                "wickets": stats['wickets'],
+                "runs_given": stats['runs_given'],
+                "overs": overs,
+                "avg": avg,
+                "econ": econ,
+                "best": stats['best_bowling']
+            })
+    
+    # Sort by wickets
+    players_list.sort(key=lambda x: x['wickets'], reverse=True)
+    
+    print(f"{'#':<3} {'Name':<18} {'W':<5} {'Overs':<7} {'Runs':<6} {'Avg':<7} {'Econ':<6} {'Best':<8}")
+    print("-"*70)
+    
+    for i, p in enumerate(players_list[:15], 1):
+        print(f"{i:<3} {p['name']:<18} {p['wickets']:<5} {p['overs']:<7.1f} {p['runs_given']:<6} "
+              f"{p['avg']:<7.2f} {p['econ']:<6.2f} {p['best']:<8}")
 
-<h2 style="margin-top:60px;">MATCH TIMING</h2>
-<p>FOR DAILY MEAN 16:15.</p>
-</div>
-</div>
+def team_statistics(data):
+    print_header("TEAM STATISTICS")
+    
+    matches = data["matches"]
+    completed = [m for m in matches if m["status"] == "completed"]
+    
+    wins = len([m for m in completed if "won" in m.get("result", "")])
+    losses = len([m for m in completed if "lost" in m.get("result", "")])
+    ties = len([m for m in completed if m.get("result", "") == "tie"])
+    no_results = len([m for m in completed if "no_result" in m.get("result", "")])
+    
+    print(f"\n🏏 Team: {data['team_name']}")
+    print("-"*40)
+    print(f"📊 Total Matches: {len(completed)}")
+    print(f"✅ Wins: {wins}")
+    print(f"❌ Losses: {losses}")
+    print(f"🤝 Ties: {ties}")
+    print(f"☁️ No Results: {no_results}")
+    
+    if completed:
+        win_pct = (wins / len(completed)) * 100
+        print(f"📈 Win Percentage: {win_pct:.2f}%")
+    
+    # Top performers
+    print("\n🌟 TOP PERFORMERS:")
+    print("-"*40)
+    
+    # Top run scorer
+    top_scorer = max(data["players"].values(), key=lambda x: x["stats"]["runs"], default=None)
+    if top_scorer:
+        print(f"🏏 Most Runs: {top_scorer['name']} - {top_scorer['stats']['runs']} runs")
+    
+    # Top wicket taker
+    top_bowler = max(data["players"].values(), key=lambda x: x["stats"]["wickets"], default=None)
+    if top_bowler:
+        print(f"🎳 Most Wickets: {top_bowler['name']} - {top_bowler['stats']['wickets']} wickets")
+    
+    # Most catches
+    top_fielder = max(data["players"].values(), key=lambda x: x["stats"]["catches"], default=None)
+    if top_fielder:
+        print(f"🧤 Most Catches: {top_fielder['name']} - {top_fielder['stats']['catches']} catches")
+    
+    # Highest score
+    highest = max(data["players"].values(), key=lambda x: x["stats"]["highest_score"], default=None)
+    if highest:
+        print(f"💯 Highest Score: {highest['name']} - {highest['stats']['highest_score']}")
 
-<footer>
-KABRISTAN CRICKET COUNCIL • 2026  
-<br><br>
-Chairman: HASAN
-</footer>
+def statistics_menu(data):
+    while True:
+        options = [
+            "Batting Leaderboard",
+            "Bowling Leaderboard",
+            "Team Statistics",
+            "View All Player Stats"
+        ]
+        print_menu("STATISTICS & LEADERBOARDS", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            break
+        elif choice == 1:
+            batting_leaderboard(data)
+        elif choice == 2:
+            bowling_leaderboard(data)
+        elif choice == 3:
+            team_statistics(data)
+        elif choice == 4:
+            for pid in data["players"]:
+                view_player_details.__code__(data, pid)
+        
+        press_enter()
 
-<script>
-/* Loading Intro */
-window.addEventListener("load", function(){
-setTimeout(function(){
-document.getElementById("loader").classList.add("hidden");
-document.getElementById("hero").classList.add("show");
-},1500);
-});
+# ==================== FINANCIAL MANAGEMENT ====================
+def add_expense(data):
+    print_header("ADD EXPENSE")
+    
+    expense = {
+        "date": get_input("Date (DD-MM-YYYY)"),
+        "category": get_input("Category (Equipment/Ground/Travel/Food/Other)"),
+        "description": get_input("Description"),
+        "amount": get_number("Amount (₹)", allow_float=True),
+        "paid_by": get_input("Paid By"),
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    data["expenses"].append(expense)
+    save_data(data)
+    print(f"\n✅ Expense of ₹{expense['amount']} added!")
 
-/* Scroll Fade */
-window.addEventListener("scroll", function(){
-const section = document.getElementById("info");
-if(window.scrollY > 200){
-section.classList.add("show");
-}
-});
-</script>
+def record_contribution(data):
+    print_header("RECORD PLAYER CONTRIBUTION")
+    view_all_players(data)
+    
+    if not data["players"]:
+        return
+    
+    pid = get_input("\nEnter Player ID")
+    
+    if pid not in data["players"]:
+        print("❌ Player not found!")
+        return
+    
+    player = data["players"][pid]
+    amount = get_number("Contribution Amount (₹)", allow_float=True)
+    
+    player["contributions"] += amount
+    save_data(data)
+    
+    print(f"✅ ₹{amount} contribution from {player['name']} recorded!")
+    print(f"   Total contributions: ₹{player['contributions']}")
 
-</body>
-</html>
+def view_expenses(data):
+    print_header("ALL EXPENSES")
+    
+    if not data["expenses"]:
+        print("❌ No expenses recorded!")
+        return
+    
+    total = 0
+    print(f"{'Date':<12} {'Category':<12} {'Description':<20} {'Amount':<10} {'Paid By':<15}")
+    print("-"*75)
+    
+    for exp in data["expenses"]:
+        print(f"{exp['date']:<12} {exp['category']:<12} {exp['description']:<20} "
+              f"₹{exp['amount']:<9} {exp['paid_by']:<15}")
+        total += exp['amount']
+    
+    print("-"*75)
+    print(f"{'TOTAL':<45} ₹{total}")
+
+def financial_summary(data):
+    print_header("FINANCIAL SUMMARY")
+    
+    # Total expenses
+    total_expenses = sum(exp['amount'] for exp in data["expenses"])
+    
+    # Total contributions
+    total_contributions = sum(p['contributions'] for p in data["players"].values())
+    
+    # Category-wise expenses
+    category_totals = defaultdict(float)
+    for exp in data["expenses"]:
+        category_totals[exp['category']] += exp['amount']
+    
+    print("\n💰 FINANCIAL OVERVIEW")
+    print("-"*40)
+    print(f"Total Expenses: ₹{total_expenses:.2f}")
+    print(f"Total Contributions: ₹{total_contributions:.2f}")
+    print(f"Balance: ₹{total_contributions - total_expenses:.2f}")
+    
+    print("\n📊 CATEGORY-WISE EXPENSES:")
+    print("-"*40)
+    for cat, amount in category_totals.items():
+        print(f"  {cat}: ₹{amount:.2f}")
+    
+    print("\n👥 PLAYER CONTRIBUTIONS:")
+    print("-"*40)
+    for pid, player in data["players"].items():
+        if player['contributions'] > 0:
+            print(f"  {player['name']}: ₹{player['contributions']:.2f}")
+    
+    # Per player share
+    if data["players"]:
+        per_player = total_expenses / len(data["players"])
+        print(f"\n📝 Per Player Share: ₹{per_player:.2f}")
+
+def financial_management(data):
+    while True:
+        options = [
+            "Add Expense",
+            "Record Player Contribution",
+            "View All Expenses",
+            "Financial Summary"
+        ]
+        print_menu("FINANCIAL MANAGEMENT", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            break
+        elif choice == 1:
+            add_expense(data)
+        elif choice == 2:
+            record_contribution(data)
+        elif choice == 3:
+            view_expenses(data)
+        elif choice == 4:
+            financial_summary(data)
+        
+        press_enter()
+
+# ==================== PRACTICE & ATTENDANCE ====================
+def add_practice_session(data):
+    print_header("ADD PRACTICE SESSION")
+    
+    session = {
+        "date": get_input("Date (DD-MM-YYYY)"),
+        "time": get_input("Time"),
+        "venue": get_input("Venue"),
+        "type": get_input("Type (Batting/Bowling/Fielding/Full)"),
+        "attendees": [],
+        "notes": get_input("Notes (optional)", required=False)
+    }
+    
+    data["practice_sessions"].append(session)
+    save_data(data)
+    print("✅ Practice session added!")
+
+def mark_attendance(data):
+    print_header("MARK PRACTICE ATTENDANCE")
+    
+    if not data["practice_sessions"]:
+        print("❌ No practice sessions found!")
+        return
+    
+    print("Recent Practice Sessions:")
+    for i, session in enumerate(data["practice_sessions"][-5:], 1):
+        print(f"{i}. {session['date']} at {session['venue']} ({session['type']})")
+    
+    session_idx = get_number("Select session number") - 1
+    
+    if session_idx < 0 or session_idx >= len(data["practice_sessions"]):
+        print("❌ Invalid selection!")
+        return
+    
+    session = data["practice_sessions"][session_idx]
+    
+    print("\nAvailable Players:")
+    view_all_players(data)
+    
+    print("\nEnter attending Player IDs (comma-separated):")
+    player_ids = input("👉 ").split(",")
+    player_ids = [p.strip() for p in player_ids]
+    
+    attendees = []
+    for pid in player_ids:
+        if pid in data["players"]:
+            attendees.append({
+                "id": pid,
+                "name": data["players"][pid]["name"]
+            })
+            # Update player attendance
+            data["players"][pid]["attendance"].append(session["date"])
+    
+    session["attendees"] = attendees
+    save_data(data)
+    
+    print(f"✅ Attendance marked! {len(attendees)} players present.")
+
+def view_attendance_report(data):
+    print_header("ATTENDANCE REPORT")
+    
+    total_sessions = len(data["practice_sessions"])
+    
+    if total_sessions == 0:
+        print("❌ No practice sessions recorded!")
+        return
+    
+    print(f"📊 Total Practice Sessions: {total_sessions}\n")
+    print(f"{'Player':<25} {'Attended':<10} {'%':<10}")
+    print("-"*50)
+    
+    for pid, player in data["players"].items():
+        attended = len(player.get("attendance", []))
+        pct = (attended / total_sessions * 100) if total_sessions > 0 else 0
+        print(f"{player['name']:<25} {attended:<10} {pct:.1f}%")
+
+def practice_management(data):
+    while True:
+        options = [
+            "Add Practice Session",
+            "Mark Attendance",
+            "View Attendance Report",
+            "View All Practice Sessions"
+        ]
+        print_menu("PRACTICE & ATTENDANCE", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            break
+        elif choice == 1:
+            add_practice_session(data)
+        elif choice == 2:
+            mark_attendance(data)
+        elif choice == 3:
+            view_attendance_report(data)
+        elif choice == 4:
+            print_header("ALL PRACTICE SESSIONS")
+            for session in data["practice_sessions"]:
+                print(f"\n📅 {session['date']} | ⏰ {session['time']}")
+                print(f"   📍 {session['venue']} | 🏏 {session['type']}")
+                print(f"   👥 Attendees: {len(session.get('attendees', []))}")
+                if session.get('notes'):
+                    print(f"   📝 {session['notes']}")
+        
+        press_enter()
+
+# ==================== TEAM SETTINGS ====================
+def team_settings(data):
+    while True:
+        print_header("TEAM SETTINGS")
+        print(f"\n🏏 Current Team Name: {data['team_name']}")
+        print(f"👥 Total Players: {len(data['players'])}")
+        print(f"📅 Total Matches: {len(data['matches'])}")
+        
+        options = [
+            "Change Team Name",
+            "Reset All Statistics",
+            "Export Data (Display)",
+            "Delete All Data"
+        ]
+        print_menu("SETTINGS", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            break
+        elif choice == 1:
+            new_name = get_input("Enter new team name")
+            data["team_name"] = new_name
+            save_data(data)
+            print(f"✅ Team name changed to '{new_name}'!")
+        elif choice == 2:
+            confirm = input("⚠️ Reset all player statistics? (yes/no): ").lower()
+            if confirm == 'yes':
+                for pid in data["players"]:
+                    data["players"][pid]["stats"] = {
+                        "matches": 0, "runs": 0, "balls_faced": 0,
+                        "fours": 0, "sixes": 0, "highest_score": 0,
+                        "fifties": 0, "hundreds": 0, "not_outs": 0,
+                        "wickets": 0, "balls_bowled": 0, "runs_given": 0,
+                        "best_bowling": "0/0", "catches": 0,
+                        "stumpings": 0, "run_outs": 0
+                    }
+                save_data(data)
+                print("✅ All statistics reset!")
+        elif choice == 3:
+            print("\n📄 DATA EXPORT:")
+            print("-"*40)
+            print(json.dumps(data, indent=2))
+        elif choice == 4:
+            confirm = input("⚠️ DELETE ALL DATA? Type 'DELETE' to confirm: ")
+            if confirm == 'DELETE':
+                data = get_default_data()
+                save_data(data)
+                print("✅ All data deleted!")
+        
+        press_enter()
+    
+    return data
+
+# ==================== QUICK ACTIONS ====================
+def quick_score_calculator():
+    print_header("QUICK SCORE CALCULATOR")
+    
+    print("\n🏏 Enter batting details:")
+    runs = get_number("Total Runs")
+    balls = get_number("Total Balls")
+    wickets = get_number("Wickets")
+    overs_bowled = balls // 6
+    remaining_balls = balls % 6
+    
+    print(f"\n📊 Score: {runs}/{wickets} ({overs_bowled}.{remaining_balls} overs)")
+    
+    if balls > 0:
+        run_rate = (runs / balls) * 6
+        print(f"📈 Run Rate: {run_rate:.2f}")
+    
+    # Projection
+    target_overs = get_number("\nProject score for overs (0 to skip)")
+    if target_overs > 0:
+        projected = int(run_rate * target_overs)
+        print(f"🎯 Projected Score in {target_overs} overs: ~{projected}")
+
+def run_rate_calculator():
+    print_header("RUN RATE CALCULATOR")
+    
+    print("\n🎯 Required Run Rate Calculator")
+    target = get_number("Target Score")
+    current_score = get_number("Current Score")
+    overs_remaining = get_number("Overs Remaining", allow_float=True)
+    
+    runs_needed = target - current_score
+    
+    if overs_remaining > 0:
+        rrr = runs_needed / overs_remaining
+        print(f"\n📊 Runs Needed: {runs_needed}")
+        print(f"📈 Required Run Rate: {rrr:.2f}")
+        print(f"⚡ Runs per ball: {runs_needed / (overs_remaining * 6):.2f}")
+    else:
+        print("❌ No overs remaining!")
+
+def quick_actions():
+    while True:
+        options = [
+            "Quick Score Calculator",
+            "Run Rate Calculator",
+            "Toss Simulator"
+        ]
+        print_menu("QUICK ACTIONS", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            break
+        elif choice == 1:
+            quick_score_calculator()
+        elif choice == 2:
+            run_rate_calculator()
+        elif choice == 3:
+            import random
+            print_header("TOSS SIMULATOR")
+            input("\n🪙 Press Enter to flip the coin...")
+            result = random.choice(["HEADS", "TAILS"])
+            print(f"\n🎉 Result: {result}!")
+        
+        press_enter()
+
+# ==================== ANNOUNCEMENTS ====================
+def announcements_menu(data):
+    while True:
+        print_header("ANNOUNCEMENTS")
+        
+        # Show recent announcements
+        if data["announcements"]:
+            print("\n📢 Recent Announcements:")
+            print("-"*40)
+            for ann in data["announcements"][-5:]:
+                print(f"\n📌 [{ann['date']}] {ann['title']}")
+                print(f"   {ann['message']}")
+        
+        options = [
+            "Add New Announcement",
+            "View All Announcements",
+            "Clear All Announcements"
+        ]
+        print_menu("ANNOUNCEMENTS", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            break
+        elif choice == 1:
+            announcement = {
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "title": get_input("Title"),
+                "message": get_input("Message")
+            }
+            data["announcements"].append(announcement)
+            save_data(data)
+            print("✅ Announcement added!")
+        elif choice == 2:
+            for ann in data["announcements"]:
+                print(f"\n📌 [{ann['date']}] {ann['title']}")
+                print(f"   {ann['message']}")
+        elif choice == 3:
+            data["announcements"] = []
+            save_data(data)
+            print("✅ All announcements cleared!")
+        
+        press_enter()
+
+# ==================== DASHBOARD ====================
+def show_dashboard(data):
+    print_header(f"DASHBOARD - {data['team_name']}")
+    
+    # Quick stats
+    total_players = len(data["players"])
+    total_matches = len(data["matches"])
+    completed_matches = len([m for m in data["matches"] if m["status"] == "completed"])
+    upcoming_matches = len([m for m in data["matches"] if m["status"] == "scheduled"])
+    wins = len([m for m in data["matches"] if "won" in m.get("result", "")])
+    
+    print(f"""
+    ╔══════════════════════════════════════════════════════╗
+    ║  👥 Players: {total_players:<5}  📅 Matches: {total_matches:<5}  ✅ Wins: {wins:<5}   ║
+    ║  🎯 Upcoming: {upcoming_matches:<5}  ✔️ Completed: {completed_matches:<5}             ║
+    ╚══════════════════════════════════════════════════════╝
+    """)
+    
+    # Recent announcements
+    if data["announcements"]:
+        print("📢 Latest Announcement:")
+        ann = data["announcements"][-1]
+        print(f"   [{ann['date']}] {ann['title']}")
+    
+    # Upcoming match
+    upcoming = [m for m in data["matches"] if m["status"] == "scheduled"]
+    if upcoming:
+        next_match = upcoming[0]
+        print(f"\n🏏 Next Match: vs {next_match['opponent']} on {next_match['date']}")
+        print(f"   📍 {next_match['venue']} | ⏰ {next_match['time']}")
+    
+    # Top performers
+    if data["players"]:
+        top_scorer = max(data["players"].values(), key=lambda x: x["stats"]["runs"])
+        top_bowler = max(data["players"].values(), key=lambda x: x["stats"]["wickets"])
+        print(f"\n🌟 Top Run Scorer: {top_scorer['name']} ({top_scorer['stats']['runs']} runs)")
+        print(f"🌟 Top Wicket Taker: {top_bowler['name']} ({top_bowler['stats']['wickets']} wickets)")
+
+# ==================== MAIN MENU ====================
+def main():
+    data = load_data()
+    
+    while True:
+        clear_screen()
+        show_dashboard(data)
+        
+        options = [
+            "👥 Player Management",
+            "🏏 Match Management",
+            "📊 Statistics & Leaderboards",
+            "💰 Financial Management",
+            "📅 Practice & Attendance",
+            "📢 Announcements",
+            "⚡ Quick Actions",
+            "⚙️ Team Settings"
+        ]
+        print_menu("MAIN MENU", options)
+        choice = get_choice(len(options))
+        
+        if choice == 0:
+            print("\n👋 Thank you for using Gully Cricket Manager!")
+            print("   All data has been saved. Goodbye!")
+            break
+        elif choice == 1:
+            player_management(data)
+        elif choice == 2:
+            match_management(data)
+        elif choice == 3:
+            statistics_menu(data)
+        elif choice == 4:
+            financial_management(data)
+        elif choice == 5:
+            practice_management(data)
+        elif choice == 6:
+            announcements_menu(data)
+        elif choice == 7:
+            quick_actions()
+        elif choice == 8:
+            data = team_settings(data)
+        
+        # Reload data in case of changes
+        data = load_data()
+
+# ==================== RUN THE PROGRAM ====================
+if __name__ == "__main__":
+    print("""
+    ╔══════════════════════════════════════════════════════════╗
+    ║                                                          ║
+    ║     🏏 GULLY CRICKET TEAM MANAGEMENT SYSTEM 🏏          ║
+    ║                                                          ║
+    ║         Manage your cricket team like a pro!             ║
+    ║                                                          ║
+    ╚══════════════════════════════════════════════════════════╝
+    """)
+    main()
+      
