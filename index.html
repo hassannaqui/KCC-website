@@ -1,1411 +1,1277 @@
-import json
-import os
-from datetime import datetime
-from collections import defaultdict
-
-# ==================== DATA FILE ====================
-DATA_FILE = "gully_cricket_data.json"
-
-# ==================== DEFAULT DATA STRUCTURE ====================
-def get_default_data():
-    return {
-        "team_name": "Gully Warriors",
-        "players": {},
-        "matches": [],
-        "expenses": [],
-        "practice_sessions": [],
-        "announcements": [],
-        "next_player_id": 1,
-        "next_match_id": 1
-    }
-
-# ==================== FILE OPERATIONS ====================
-def load_data():
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            return get_default_data()
-    return get_default_data()
-
-def save_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
-
-# ==================== UTILITY FUNCTIONS ====================
-def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-def press_enter():
-    input("\n🔵 Press Enter to continue...")
-
-def print_header(title):
-    print("\n" + "="*60)
-    print(f"🏏 {title.center(56)} 🏏")
-    print("="*60)
-
-def print_menu(title, options):
-    print_header(title)
-    for i, option in enumerate(options, 1):
-        print(f"  {i}. {option}")
-    print(f"  0. Back / Exit")
-    print("-"*60)
-
-def get_choice(max_val):
-    while True:
-        try:
-            choice = int(input("👉 Enter your choice: "))
-            if 0 <= choice <= max_val:
-                return choice
-            print("❌ Invalid choice! Try again.")
-        except ValueError:
-            print("❌ Please enter a number!")
-
-def get_input(prompt, required=True):
-    while True:
-        value = input(f"📝 {prompt}: ").strip()
-        if value or not required:
-            return value
-        print("❌ This field is required!")
-
-def get_number(prompt, allow_float=False):
-    while True:
-        try:
-            value = input(f"📝 {prompt}: ").strip()
-            return float(value) if allow_float else int(value)
-        except ValueError:
-            print("❌ Please enter a valid number!")
-
-# ==================== PLAYER MANAGEMENT ====================
-def add_player(data):
-    print_header("ADD NEW PLAYER")
-    
-    player_id = str(data["next_player_id"])
-    data["next_player_id"] += 1
-    
-    player = {
-        "id": player_id,
-        "name": get_input("Player Name"),
-        "age": get_number("Age"),
-        "phone": get_input("Phone Number"),
-        "role": get_input("Role (Batsman/Bowler/All-Rounder/Wicket-Keeper)"),
-        "batting_style": get_input("Batting Style (Right/Left)"),
-        "bowling_style": get_input("Bowling Style (Fast/Medium/Spin/None)"),
-        "jersey_number": get_input("Jersey Number", required=False) or "N/A",
-        "joined_date": datetime.now().strftime("%Y-%m-%d"),
-        "stats": {
-            "matches": 0,
-            "runs": 0,
-            "balls_faced": 0,
-            "fours": 0,
-            "sixes": 0,
-            "highest_score": 0,
-            "fifties": 0,
-            "hundreds": 0,
-            "not_outs": 0,
-            "wickets": 0,
-            "balls_bowled": 0,
-            "runs_given": 0,
-            "best_bowling": "0/0",
-            "catches": 0,
-            "stumpings": 0,
-            "run_outs": 0
-        },
-        "attendance": [],
-        "contributions": 0
-    }
-    
-    data["players"][player_id] = player
-    save_data(data)
-    print(f"\n✅ Player '{player['name']}' added successfully with ID: {player_id}")
-
-def view_all_players(data):
-    print_header("ALL PLAYERS")
-    
-    if not data["players"]:
-        print("❌ No players registered yet!")
-        return
-    
-    print(f"{'ID':<4} {'Name':<20} {'Role':<15} {'Matches':<8} {'Runs':<8} {'Wickets':<8}")
-    print("-"*70)
-    
-    for pid, player in data["players"].items():
-        stats = player["stats"]
-        print(f"{pid:<4} {player['name']:<20} {player['role']:<15} "
-              f"{stats['matches']:<8} {stats['runs']:<8} {stats['wickets']:<8}")
-
-def view_player_details(data):
-    print_header("PLAYER DETAILS")
-    view_all_players(data)
-    
-    if not data["players"]:
-        return
-    
-    pid = get_input("\nEnter Player ID to view details")
-    
-    if pid not in data["players"]:
-        print("❌ Player not found!")
-        return
-    
-    player = data["players"][pid]
-    stats = player["stats"]
-    
-    print("\n" + "="*50)
-    print(f"🏏 PLAYER PROFILE: {player['name']}")
-    print("="*50)
-    print(f"📋 ID: {player['id']}")
-    print(f"📞 Phone: {player['phone']}")
-    print(f"🎂 Age: {player['age']}")
-    print(f"👕 Jersey: {player['jersey_number']}")
-    print(f"🎯 Role: {player['role']}")
-    print(f"🏏 Batting: {player['batting_style']} Handed")
-    print(f"🎳 Bowling: {player['bowling_style']}")
-    print(f"📅 Joined: {player['joined_date']}")
-    
-    print("\n📊 BATTING STATISTICS:")
-    print("-"*40)
-    print(f"  Matches: {stats['matches']}")
-    print(f"  Runs: {stats['runs']}")
-    print(f"  Balls Faced: {stats['balls_faced']}")
-    print(f"  Highest Score: {stats['highest_score']}")
-    print(f"  4s/6s: {stats['fours']}/{stats['sixes']}")
-    print(f"  50s/100s: {stats['fifties']}/{stats['hundreds']}")
-    print(f"  Not Outs: {stats['not_outs']}")
-    
-    # Calculate batting average and strike rate
-    innings = stats['matches'] - stats['not_outs']
-    avg = stats['runs'] / innings if innings > 0 else stats['runs']
-    sr = (stats['runs'] / stats['balls_faced'] * 100) if stats['balls_faced'] > 0 else 0
-    print(f"  Average: {avg:.2f}")
-    print(f"  Strike Rate: {sr:.2f}")
-    
-    print("\n🎳 BOWLING STATISTICS:")
-    print("-"*40)
-    print(f"  Wickets: {stats['wickets']}")
-    print(f"  Balls Bowled: {stats['balls_bowled']}")
-    print(f"  Runs Given: {stats['runs_given']}")
-    print(f"  Best Bowling: {stats['best_bowling']}")
-    
-    # Calculate bowling average and economy
-    bowl_avg = stats['runs_given'] / stats['wickets'] if stats['wickets'] > 0 else 0
-    overs = stats['balls_bowled'] / 6
-    economy = stats['runs_given'] / overs if overs > 0 else 0
-    print(f"  Average: {bowl_avg:.2f}")
-    print(f"  Economy: {economy:.2f}")
-    
-    print("\n🧤 FIELDING STATISTICS:")
-    print("-"*40)
-    print(f"  Catches: {stats['catches']}")
-    print(f"  Stumpings: {stats['stumpings']}")
-    print(f"  Run Outs: {stats['run_outs']}")
-    
-    print(f"\n💰 Total Contribution: ₹{player['contributions']}")
-
-def edit_player(data):
-    print_header("EDIT PLAYER")
-    view_all_players(data)
-    
-    if not data["players"]:
-        return
-    
-    pid = get_input("\nEnter Player ID to edit")
-    
-    if pid not in data["players"]:
-        print("❌ Player not found!")
-        return
-    
-    player = data["players"][pid]
-    print(f"\n📝 Editing: {player['name']} (Leave blank to keep current value)")
-    
-    name = input(f"Name [{player['name']}]: ").strip()
-    if name:
-        player['name'] = name
-    
-    phone = input(f"Phone [{player['phone']}]: ").strip()
-    if phone:
-        player['phone'] = phone
-    
-    age = input(f"Age [{player['age']}]: ").strip()
-    if age:
-        player['age'] = int(age)
-    
-    role = input(f"Role [{player['role']}]: ").strip()
-    if role:
-        player['role'] = role
-    
-    jersey = input(f"Jersey [{player['jersey_number']}]: ").strip()
-    if jersey:
-        player['jersey_number'] = jersey
-    
-    save_data(data)
-    print("✅ Player updated successfully!")
-
-def remove_player(data):
-    print_header("REMOVE PLAYER")
-    view_all_players(data)
-    
-    if not data["players"]:
-        return
-    
-    pid = get_input("\nEnter Player ID to remove")
-    
-    if pid not in data["players"]:
-        print("❌ Player not found!")
-        return
-    
-    player_name = data["players"][pid]["name"]
-    confirm = input(f"⚠️ Are you sure you want to remove '{player_name}'? (yes/no): ").lower()
-    
-    if confirm == 'yes':
-        del data["players"][pid]
-        save_data(data)
-        print(f"✅ Player '{player_name}' removed successfully!")
-    else:
-        print("❌ Cancelled!")
-
-def player_management(data):
-    while True:
-        options = [
-            "Add New Player",
-            "View All Players",
-            "View Player Details",
-            "Edit Player",
-            "Remove Player"
-        ]
-        print_menu("PLAYER MANAGEMENT", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            break
-        elif choice == 1:
-            add_player(data)
-        elif choice == 2:
-            view_all_players(data)
-        elif choice == 3:
-            view_player_details(data)
-        elif choice == 4:
-            edit_player(data)
-        elif choice == 5:
-            remove_player(data)
-        
-        press_enter()
-
-# ==================== MATCH MANAGEMENT ====================
-def schedule_match(data):
-    print_header("SCHEDULE NEW MATCH")
-    
-    match_id = str(data["next_match_id"])
-    data["next_match_id"] += 1
-    
-    match = {
-        "id": match_id,
-        "opponent": get_input("Opponent Team Name"),
-        "venue": get_input("Venue"),
-        "date": get_input("Date (DD-MM-YYYY)"),
-        "time": get_input("Time"),
-        "overs": get_number("Number of Overs"),
-        "status": "scheduled",
-        "toss": "",
-        "toss_decision": "",
-        "our_batting": [],
-        "our_bowling": [],
-        "our_score": "",
-        "opponent_score": "",
-        "result": "",
-        "man_of_match": "",
-        "playing_xi": [],
-        "notes": ""
-    }
-    
-    data["matches"].append(match)
-    save_data(data)
-    print(f"\n✅ Match against '{match['opponent']}' scheduled! Match ID: {match_id}")
-
-def view_matches(data, status_filter=None):
-    print_header("MATCHES")
-    
-    matches = data["matches"]
-    if status_filter:
-        matches = [m for m in matches if m["status"] == status_filter]
-    
-    if not matches:
-        print("❌ No matches found!")
-        return
-    
-    print(f"{'ID':<4} {'Opponent':<20} {'Date':<12} {'Venue':<15} {'Status':<12}")
-    print("-"*70)
-    
-    for match in matches:
-        print(f"{match['id']:<4} {match['opponent']:<20} {match['date']:<12} "
-              f"{match['venue']:<15} {match['status']:<12}")
-
-def select_playing_xi(data):
-    print_header("SELECT PLAYING XI")
-    
-    scheduled_matches = [m for m in data["matches"] if m["status"] == "scheduled"]
-    if not scheduled_matches:
-        print("❌ No scheduled matches!")
-        return
-    
-    for match in scheduled_matches:
-        print(f"ID: {match['id']} | vs {match['opponent']} on {match['date']}")
-    
-    mid = get_input("\nEnter Match ID")
-    match = next((m for m in data["matches"] if m["id"] == mid), None)
-    
-    if not match:
-        print("❌ Match not found!")
-        return
-    
-    print("\nAvailable Players:")
-    view_all_players(data)
-    
-    print("\nEnter 11 Player IDs (comma-separated):")
-    player_ids = input("👉 ").split(",")
-    player_ids = [p.strip() for p in player_ids]
-    
-    valid_players = []
-    for pid in player_ids:
-        if pid in data["players"]:
-            valid_players.append(pid)
-    
-    if len(valid_players) < 11:
-        print(f"⚠️ Only {len(valid_players)} valid players selected. Need 11!")
-        confirm = input("Continue anyway? (yes/no): ").lower()
-        if confirm != 'yes':
-            return
-    
-    match["playing_xi"] = valid_players
-    save_data(data)
-    
-    print("\n✅ Playing XI Selected:")
-    for pid in valid_players:
-        print(f"  - {data['players'][pid]['name']}")
-
-def record_toss(data):
-    print_header("RECORD TOSS")
-    
-    scheduled_matches = [m for m in data["matches"] if m["status"] == "scheduled"]
-    if not scheduled_matches:
-        print("❌ No scheduled matches!")
-        return
-    
-    for match in scheduled_matches:
-        print(f"ID: {match['id']} | vs {match['opponent']} on {match['date']}")
-    
-    mid = get_input("\nEnter Match ID")
-    match = next((m for m in data["matches"] if m["id"] == mid), None)
-    
-    if not match:
-        print("❌ Match not found!")
-        return
-    
-    print("\nWho won the toss?")
-    print("1. Our Team")
-    print("2. Opponent")
-    toss_winner = get_choice(2)
-    
-    match["toss"] = "won" if toss_winner == 1 else "lost"
-    
-    print("\nDecision?")
-    print("1. Batting")
-    print("2. Bowling")
-    decision = get_choice(2)
-    
-    match["toss_decision"] = "bat" if decision == 1 else "bowl"
-    match["status"] = "ongoing"
-    
-    save_data(data)
-    print("✅ Toss recorded! Match is now LIVE!")
-
-def record_batting_score(data):
-    print_header("RECORD BATTING SCORE")
-    
-    ongoing_matches = [m for m in data["matches"] if m["status"] == "ongoing"]
-    if not ongoing_matches:
-        print("❌ No ongoing matches!")
-        return
-    
-    for match in ongoing_matches:
-        print(f"ID: {match['id']} | vs {match['opponent']}")
-    
-    mid = get_input("\nEnter Match ID")
-    match = next((m for m in data["matches"] if m["id"] == mid), None)
-    
-    if not match:
-        print("❌ Match not found!")
-        return
-    
-    print("\n📊 Enter batting scores for each player:")
-    print("(Enter player ID, runs, balls, 4s, 6s, out status)")
-    
-    batting_scores = []
-    total_runs = 0
-    total_wickets = 0
-    total_balls = 0
-    total_extras = 0
-    
-    print("\n🏏 Enter 'done' when finished\n")
-    
-    while True:
-        pid = input("Player ID (or 'done'): ").strip()
-        if pid.lower() == 'done':
-            break
-        
-        if pid not in data["players"]:
-            print("❌ Invalid Player ID!")
-            continue
-        
-        player = data["players"][pid]
-        print(f"Recording for: {player['name']}")
-        
-        runs = get_number("Runs scored")
-        balls = get_number("Balls faced")
-        fours = get_number("Fours")
-        sixes = get_number("Sixes")
-        out = input("Out? (yes/no): ").lower() == 'yes'
-        
-        batting_entry = {
-            "player_id": pid,
-            "player_name": player['name'],
-            "runs": runs,
-            "balls": balls,
-            "fours": fours,
-            "sixes": sixes,
-            "out": out
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gully Warriors CC | Cricket Team</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #e94560;
+            --accent2: #0f3460;
+            --gold: #ffd700;
+            --white: #ffffff;
+            --gray: #a0a0a0;
+            --success: #00c853;
+            --gradient1: linear-gradient(135deg, #e94560 0%, #0f3460 100%);
+            --gradient2: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            --gradient3: linear-gradient(135deg, #ffd700 0%, #ff6b35 100%);
         }
-        batting_scores.append(batting_entry)
-        
-        # Update player stats
-        player["stats"]["matches"] += 1
-        player["stats"]["runs"] += runs
-        player["stats"]["balls_faced"] += balls
-        player["stats"]["fours"] += fours
-        player["stats"]["sixes"] += sixes
-        if runs > player["stats"]["highest_score"]:
-            player["stats"]["highest_score"] = runs
-        if runs >= 100:
-            player["stats"]["hundreds"] += 1
-        elif runs >= 50:
-            player["stats"]["fifties"] += 1
-        if not out:
-            player["stats"]["not_outs"] += 1
-        
-        total_runs += runs
-        total_balls += balls
-        if out:
-            total_wickets += 1
-        
-        print(f"✅ {player['name']}: {runs}({balls}) recorded!\n")
-    
-    total_extras = get_number("Total Extras (wides, no-balls, byes, leg-byes)")
-    total_runs += total_extras
-    
-    overs = total_balls // 6
-    balls = total_balls % 6
-    
-    match["our_batting"] = batting_scores
-    match["our_score"] = f"{total_runs}/{total_wickets} ({overs}.{balls} overs)"
-    
-    save_data(data)
-    print(f"\n✅ Batting score recorded: {match['our_score']}")
 
-def record_bowling_figures(data):
-    print_header("RECORD BOWLING FIGURES")
-    
-    ongoing_matches = [m for m in data["matches"] if m["status"] == "ongoing"]
-    if not ongoing_matches:
-        print("❌ No ongoing matches!")
-        return
-    
-    for match in ongoing_matches:
-        print(f"ID: {match['id']} | vs {match['opponent']}")
-    
-    mid = get_input("\nEnter Match ID")
-    match = next((m for m in data["matches"] if m["id"] == mid), None)
-    
-    if not match:
-        print("❌ Match not found!")
-        return
-    
-    print("\n🎳 Enter bowling figures:")
-    print("(Enter player ID, overs, maidens, runs, wickets)")
-    
-    bowling_figures = []
-    
-    print("\n🎳 Enter 'done' when finished\n")
-    
-    while True:
-        pid = input("Player ID (or 'done'): ").strip()
-        if pid.lower() == 'done':
-            break
-        
-        if pid not in data["players"]:
-            print("❌ Invalid Player ID!")
-            continue
-        
-        player = data["players"][pid]
-        print(f"Recording for: {player['name']}")
-        
-        overs = get_number("Overs bowled", allow_float=True)
-        maidens = get_number("Maidens")
-        runs = get_number("Runs given")
-        wickets = get_number("Wickets taken")
-        
-        bowling_entry = {
-            "player_id": pid,
-            "player_name": player['name'],
-            "overs": overs,
-            "maidens": maidens,
-            "runs": runs,
-            "wickets": wickets
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        bowling_figures.append(bowling_entry)
-        
-        # Update player stats
-        balls_bowled = int(overs) * 6 + int((overs % 1) * 10)
-        player["stats"]["balls_bowled"] += balls_bowled
-        player["stats"]["runs_given"] += runs
-        player["stats"]["wickets"] += wickets
-        
-        # Update best bowling
-        current_best = player["stats"]["best_bowling"].split("/")
-        if wickets > int(current_best[0]) or (wickets == int(current_best[0]) and runs < int(current_best[1])):
-            player["stats"]["best_bowling"] = f"{wickets}/{runs}"
-        
-        print(f"✅ {player['name']}: {wickets}/{runs} recorded!\n")
-    
-    match["our_bowling"] = bowling_figures
-    
-    # Record opponent score
-    match["opponent_score"] = get_input("Enter opponent's final score (e.g., 120/8 in 15.3 overs)")
-    
-    save_data(data)
-    print("✅ Bowling figures recorded!")
 
-def record_fielding_stats(data):
-    print_header("RECORD FIELDING STATS")
-    
-    ongoing_matches = [m for m in data["matches"] if m["status"] == "ongoing"]
-    if not ongoing_matches:
-        print("❌ No ongoing matches!")
-        return
-    
-    for match in ongoing_matches:
-        print(f"ID: {match['id']} | vs {match['opponent']}")
-    
-    mid = get_input("\nEnter Match ID")
-    match = next((m for m in data["matches"] if m["id"] == mid), None)
-    
-    if not match:
-        print("❌ Match not found!")
-        return
-    
-    print("\n🧤 Enter fielding stats:")
-    print("Enter 'done' when finished\n")
-    
-    while True:
-        pid = input("Player ID (or 'done'): ").strip()
-        if pid.lower() == 'done':
-            break
-        
-        if pid not in data["players"]:
-            print("❌ Invalid Player ID!")
-            continue
-        
-        player = data["players"][pid]
-        print(f"Recording for: {player['name']}")
-        
-        catches = get_number("Catches")
-        stumpings = get_number("Stumpings")
-        run_outs = get_number("Run Outs")
-        
-        player["stats"]["catches"] += catches
-        player["stats"]["stumpings"] += stumpings
-        player["stats"]["run_outs"] += run_outs
-        
-        print(f"✅ Fielding stats recorded!\n")
-    
-    save_data(data)
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--primary);
+            color: var(--white);
+            overflow-x: hidden;
+        }
 
-def complete_match(data):
-    print_header("COMPLETE MATCH")
-    
-    ongoing_matches = [m for m in data["matches"] if m["status"] == "ongoing"]
-    if not ongoing_matches:
-        print("❌ No ongoing matches!")
-        return
-    
-    for match in ongoing_matches:
-        print(f"ID: {match['id']} | vs {match['opponent']}")
-        print(f"   Our Score: {match['our_score']}")
-        print(f"   Opponent Score: {match['opponent_score']}")
-    
-    mid = get_input("\nEnter Match ID")
-    match = next((m for m in data["matches"] if m["id"] == mid), None)
-    
-    if not match:
-        print("❌ Match not found!")
-        return
-    
-    print("\nMatch Result:")
-    print("1. Won")
-    print("2. Lost")
-    print("3. Tie")
-    print("4. No Result")
-    result_choice = get_choice(4)
-    
-    results = {1: "won", 2: "lost", 3: "tie", 4: "no_result"}
-    match["result"] = results[result_choice]
-    
-    if result_choice in [1, 2]:
-        margin = get_input("Win/Loss Margin (e.g., '5 wickets' or '20 runs')")
-        match["result"] += f" by {margin}"
-    
-    # Man of the match
-    print("\n🏆 Man of the Match:")
-    view_all_players(data)
-    mom_id = get_input("Enter Player ID for MoM (or leave blank)")
-    if mom_id and mom_id in data["players"]:
-        match["man_of_match"] = data["players"][mom_id]["name"]
-    
-    match["notes"] = get_input("Match Notes (optional)", required=False)
-    match["status"] = "completed"
-    
-    save_data(data)
-    print("\n✅ Match completed and recorded!")
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
 
-def view_match_details(data):
-    print_header("MATCH DETAILS")
-    
-    if not data["matches"]:
-        print("❌ No matches found!")
-        return
-    
-    view_matches(data)
-    mid = get_input("\nEnter Match ID to view details")
-    match = next((m for m in data["matches"] if m["id"] == mid), None)
-    
-    if not match:
-        print("❌ Match not found!")
-        return
-    
-    print("\n" + "="*60)
-    print(f"🏏 MATCH #{match['id']}: {data['team_name']} vs {match['opponent']}")
-    print("="*60)
-    print(f"📅 Date: {match['date']} | ⏰ Time: {match['time']}")
-    print(f"📍 Venue: {match['venue']}")
-    print(f"🎯 Overs: {match['overs']}")
-    print(f"📊 Status: {match['status'].upper()}")
-    
-    if match["toss"]:
-        print(f"🪙 Toss: {match['toss'].upper()} - chose to {match['toss_decision']}")
-    
-    if match["playing_xi"]:
-        print("\n👥 Playing XI:")
-        for i, pid in enumerate(match["playing_xi"], 1):
-            name = data["players"].get(pid, {}).get("name", "Unknown")
-            print(f"   {i}. {name}")
-    
-    if match["our_score"]:
-        print(f"\n🏏 Our Score: {match['our_score']}")
-    if match["opponent_score"]:
-        print(f"🏏 Opponent Score: {match['opponent_score']}")
-    
-    if match["our_batting"]:
-        print("\n📊 BATTING SCORECARD:")
-        print("-"*50)
-        print(f"{'Batsman':<20} {'R':<5} {'B':<5} {'4s':<4} {'6s':<4} {'SR':<8}")
-        print("-"*50)
-        for bat in match["our_batting"]:
-            sr = (bat['runs'] / bat['balls'] * 100) if bat['balls'] > 0 else 0
-            status = "" if bat['out'] else "*"
-            print(f"{bat['player_name']}{status:<19} {bat['runs']:<5} {bat['balls']:<5} "
-                  f"{bat['fours']:<4} {bat['sixes']:<4} {sr:.2f}")
-    
-    if match["our_bowling"]:
-        print("\n🎳 BOWLING FIGURES:")
-        print("-"*50)
-        print(f"{'Bowler':<20} {'O':<6} {'M':<4} {'R':<5} {'W':<4} {'Econ':<8}")
-        print("-"*50)
-        for bowl in match["our_bowling"]:
-            econ = bowl['runs'] / bowl['overs'] if bowl['overs'] > 0 else 0
-            print(f"{bowl['player_name']:<20} {bowl['overs']:<6} {bowl['maidens']:<4} "
-                  f"{bowl['runs']:<5} {bowl['wickets']:<4} {econ:.2f}")
-    
-    if match["result"]:
-        print(f"\n🏆 Result: {match['result'].upper()}")
-    if match["man_of_match"]:
-        print(f"⭐ Man of the Match: {match['man_of_match']}")
-    if match["notes"]:
-        print(f"📝 Notes: {match['notes']}")
+        ::-webkit-scrollbar-track {
+            background: var(--primary);
+        }
 
-def match_management(data):
-    while True:
-        options = [
-            "Schedule New Match",
-            "View All Matches",
-            "View Scheduled Matches",
-            "View Completed Matches",
-            "Select Playing XI",
-            "Record Toss",
-            "Record Batting Score",
-            "Record Bowling Figures",
-            "Record Fielding Stats",
-            "Complete Match",
-            "View Match Details"
-        ]
-        print_menu("MATCH MANAGEMENT", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            break
-        elif choice == 1:
-            schedule_match(data)
-        elif choice == 2:
-            view_matches(data)
-        elif choice == 3:
-            view_matches(data, "scheduled")
-        elif choice == 4:
-            view_matches(data, "completed")
-        elif choice == 5:
-            select_playing_xi(data)
-        elif choice == 6:
-            record_toss(data)
-        elif choice == 7:
-            record_batting_score(data)
-        elif choice == 8:
-            record_bowling_figures(data)
-        elif choice == 9:
-            record_fielding_stats(data)
-        elif choice == 10:
-            complete_match(data)
-        elif choice == 11:
-            view_match_details(data)
-        
-        press_enter()
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 5px;
+        }
 
-# ==================== STATISTICS & LEADERBOARDS ====================
-def batting_leaderboard(data):
-    print_header("BATTING LEADERBOARD")
-    
-    if not data["players"]:
-        print("❌ No players found!")
-        return
-    
-    players_list = []
-    for pid, player in data["players"].items():
-        stats = player["stats"]
-        innings = stats['matches'] - stats['not_outs']
-        avg = stats['runs'] / innings if innings > 0 else stats['runs']
-        sr = (stats['runs'] / stats['balls_faced'] * 100) if stats['balls_faced'] > 0 else 0
-        players_list.append({
-            "name": player['name'],
-            "matches": stats['matches'],
-            "runs": stats['runs'],
-            "avg": avg,
-            "sr": sr,
-            "hs": stats['highest_score'],
-            "50s": stats['fifties'],
-            "100s": stats['hundreds']
-        })
-    
-    # Sort by runs
-    players_list.sort(key=lambda x: x['runs'], reverse=True)
-    
-    print(f"{'#':<3} {'Name':<18} {'M':<4} {'Runs':<6} {'Avg':<7} {'SR':<7} {'HS':<5} {'50/100':<8}")
-    print("-"*70)
-    
-    for i, p in enumerate(players_list[:15], 1):
-        print(f"{i:<3} {p['name']:<18} {p['matches']:<4} {p['runs']:<6} {p['avg']:<7.2f} "
-              f"{p['sr']:<7.2f} {p['hs']:<5} {p['50s']}/{p['100s']}")
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
 
-def bowling_leaderboard(data):
-    print_header("BOWLING LEADERBOARD")
-    
-    if not data["players"]:
-        print("❌ No players found!")
-        return
-    
-    players_list = []
-    for pid, player in data["players"].items():
-        stats = player["stats"]
-        if stats['wickets'] > 0:
-            avg = stats['runs_given'] / stats['wickets']
-            overs = stats['balls_bowled'] / 6
-            econ = stats['runs_given'] / overs if overs > 0 else 0
-            players_list.append({
-                "name": player['name'],
-                "wickets": stats['wickets'],
-                "runs_given": stats['runs_given'],
-                "overs": overs,
-                "avg": avg,
-                "econ": econ,
-                "best": stats['best_bowling']
-            })
-    
-    # Sort by wickets
-    players_list.sort(key=lambda x: x['wickets'], reverse=True)
-    
-    print(f"{'#':<3} {'Name':<18} {'W':<5} {'Overs':<7} {'Runs':<6} {'Avg':<7} {'Econ':<6} {'Best':<8}")
-    print("-"*70)
-    
-    for i, p in enumerate(players_list[:15], 1):
-        print(f"{i:<3} {p['name']:<18} {p['wickets']:<5} {p['overs']:<7.1f} {p['runs_given']:<6} "
-              f"{p['avg']:<7.2f} {p['econ']:<6.2f} {p['best']:<8}")
+        .bg-animation span {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(233, 69, 96, 0.1);
+            border-radius: 50%;
+            animation: float 15s infinite;
+        }
 
-def team_statistics(data):
-    print_header("TEAM STATISTICS")
-    
-    matches = data["matches"]
-    completed = [m for m in matches if m["status"] == "completed"]
-    
-    wins = len([m for m in completed if "won" in m.get("result", "")])
-    losses = len([m for m in completed if "lost" in m.get("result", "")])
-    ties = len([m for m in completed if m.get("result", "") == "tie"])
-    no_results = len([m for m in completed if "no_result" in m.get("result", "")])
-    
-    print(f"\n🏏 Team: {data['team_name']}")
-    print("-"*40)
-    print(f"📊 Total Matches: {len(completed)}")
-    print(f"✅ Wins: {wins}")
-    print(f"❌ Losses: {losses}")
-    print(f"🤝 Ties: {ties}")
-    print(f"☁️ No Results: {no_results}")
-    
-    if completed:
-        win_pct = (wins / len(completed)) * 100
-        print(f"📈 Win Percentage: {win_pct:.2f}%")
-    
-    # Top performers
-    print("\n🌟 TOP PERFORMERS:")
-    print("-"*40)
-    
-    # Top run scorer
-    top_scorer = max(data["players"].values(), key=lambda x: x["stats"]["runs"], default=None)
-    if top_scorer:
-        print(f"🏏 Most Runs: {top_scorer['name']} - {top_scorer['stats']['runs']} runs")
-    
-    # Top wicket taker
-    top_bowler = max(data["players"].values(), key=lambda x: x["stats"]["wickets"], default=None)
-    if top_bowler:
-        print(f"🎳 Most Wickets: {top_bowler['name']} - {top_bowler['stats']['wickets']} wickets")
-    
-    # Most catches
-    top_fielder = max(data["players"].values(), key=lambda x: x["stats"]["catches"], default=None)
-    if top_fielder:
-        print(f"🧤 Most Catches: {top_fielder['name']} - {top_fielder['stats']['catches']} catches")
-    
-    # Highest score
-    highest = max(data["players"].values(), key=lambda x: x["stats"]["highest_score"], default=None)
-    if highest:
-        print(f"💯 Highest Score: {highest['name']} - {highest['stats']['highest_score']}")
-
-def statistics_menu(data):
-    while True:
-        options = [
-            "Batting Leaderboard",
-            "Bowling Leaderboard",
-            "Team Statistics",
-            "View All Player Stats"
-        ]
-        print_menu("STATISTICS & LEADERBOARDS", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            break
-        elif choice == 1:
-            batting_leaderboard(data)
-        elif choice == 2:
-            bowling_leaderboard(data)
-        elif choice == 3:
-            team_statistics(data)
-        elif choice == 4:
-            for pid in data["players"]:
-                view_player_details.__code__(data, pid)
-        
-        press_enter()
-
-# ==================== FINANCIAL MANAGEMENT ====================
-def add_expense(data):
-    print_header("ADD EXPENSE")
-    
-    expense = {
-        "date": get_input("Date (DD-MM-YYYY)"),
-        "category": get_input("Category (Equipment/Ground/Travel/Food/Other)"),
-        "description": get_input("Description"),
-        "amount": get_number("Amount (₹)", allow_float=True),
-        "paid_by": get_input("Paid By"),
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    
-    data["expenses"].append(expense)
-    save_data(data)
-    print(f"\n✅ Expense of ₹{expense['amount']} added!")
-
-def record_contribution(data):
-    print_header("RECORD PLAYER CONTRIBUTION")
-    view_all_players(data)
-    
-    if not data["players"]:
-        return
-    
-    pid = get_input("\nEnter Player ID")
-    
-    if pid not in data["players"]:
-        print("❌ Player not found!")
-        return
-    
-    player = data["players"][pid]
-    amount = get_number("Contribution Amount (₹)", allow_float=True)
-    
-    player["contributions"] += amount
-    save_data(data)
-    
-    print(f"✅ ₹{amount} contribution from {player['name']} recorded!")
-    print(f"   Total contributions: ₹{player['contributions']}")
-
-def view_expenses(data):
-    print_header("ALL EXPENSES")
-    
-    if not data["expenses"]:
-        print("❌ No expenses recorded!")
-        return
-    
-    total = 0
-    print(f"{'Date':<12} {'Category':<12} {'Description':<20} {'Amount':<10} {'Paid By':<15}")
-    print("-"*75)
-    
-    for exp in data["expenses"]:
-        print(f"{exp['date']:<12} {exp['category']:<12} {exp['description']:<20} "
-              f"₹{exp['amount']:<9} {exp['paid_by']:<15}")
-        total += exp['amount']
-    
-    print("-"*75)
-    print(f"{'TOTAL':<45} ₹{total}")
-
-def financial_summary(data):
-    print_header("FINANCIAL SUMMARY")
-    
-    # Total expenses
-    total_expenses = sum(exp['amount'] for exp in data["expenses"])
-    
-    # Total contributions
-    total_contributions = sum(p['contributions'] for p in data["players"].values())
-    
-    # Category-wise expenses
-    category_totals = defaultdict(float)
-    for exp in data["expenses"]:
-        category_totals[exp['category']] += exp['amount']
-    
-    print("\n💰 FINANCIAL OVERVIEW")
-    print("-"*40)
-    print(f"Total Expenses: ₹{total_expenses:.2f}")
-    print(f"Total Contributions: ₹{total_contributions:.2f}")
-    print(f"Balance: ₹{total_contributions - total_expenses:.2f}")
-    
-    print("\n📊 CATEGORY-WISE EXPENSES:")
-    print("-"*40)
-    for cat, amount in category_totals.items():
-        print(f"  {cat}: ₹{amount:.2f}")
-    
-    print("\n👥 PLAYER CONTRIBUTIONS:")
-    print("-"*40)
-    for pid, player in data["players"].items():
-        if player['contributions'] > 0:
-            print(f"  {player['name']}: ₹{player['contributions']:.2f}")
-    
-    # Per player share
-    if data["players"]:
-        per_player = total_expenses / len(data["players"])
-        print(f"\n📝 Per Player Share: ₹{per_player:.2f}")
-
-def financial_management(data):
-    while True:
-        options = [
-            "Add Expense",
-            "Record Player Contribution",
-            "View All Expenses",
-            "Financial Summary"
-        ]
-        print_menu("FINANCIAL MANAGEMENT", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            break
-        elif choice == 1:
-            add_expense(data)
-        elif choice == 2:
-            record_contribution(data)
-        elif choice == 3:
-            view_expenses(data)
-        elif choice == 4:
-            financial_summary(data)
-        
-        press_enter()
-
-# ==================== PRACTICE & ATTENDANCE ====================
-def add_practice_session(data):
-    print_header("ADD PRACTICE SESSION")
-    
-    session = {
-        "date": get_input("Date (DD-MM-YYYY)"),
-        "time": get_input("Time"),
-        "venue": get_input("Venue"),
-        "type": get_input("Type (Batting/Bowling/Fielding/Full)"),
-        "attendees": [],
-        "notes": get_input("Notes (optional)", required=False)
-    }
-    
-    data["practice_sessions"].append(session)
-    save_data(data)
-    print("✅ Practice session added!")
-
-def mark_attendance(data):
-    print_header("MARK PRACTICE ATTENDANCE")
-    
-    if not data["practice_sessions"]:
-        print("❌ No practice sessions found!")
-        return
-    
-    print("Recent Practice Sessions:")
-    for i, session in enumerate(data["practice_sessions"][-5:], 1):
-        print(f"{i}. {session['date']} at {session['venue']} ({session['type']})")
-    
-    session_idx = get_number("Select session number") - 1
-    
-    if session_idx < 0 or session_idx >= len(data["practice_sessions"]):
-        print("❌ Invalid selection!")
-        return
-    
-    session = data["practice_sessions"][session_idx]
-    
-    print("\nAvailable Players:")
-    view_all_players(data)
-    
-    print("\nEnter attending Player IDs (comma-separated):")
-    player_ids = input("👉 ").split(",")
-    player_ids = [p.strip() for p in player_ids]
-    
-    attendees = []
-    for pid in player_ids:
-        if pid in data["players"]:
-            attendees.append({
-                "id": pid,
-                "name": data["players"][pid]["name"]
-            })
-            # Update player attendance
-            data["players"][pid]["attendance"].append(session["date"])
-    
-    session["attendees"] = attendees
-    save_data(data)
-    
-    print(f"✅ Attendance marked! {len(attendees)} players present.")
-
-def view_attendance_report(data):
-    print_header("ATTENDANCE REPORT")
-    
-    total_sessions = len(data["practice_sessions"])
-    
-    if total_sessions == 0:
-        print("❌ No practice sessions recorded!")
-        return
-    
-    print(f"📊 Total Practice Sessions: {total_sessions}\n")
-    print(f"{'Player':<25} {'Attended':<10} {'%':<10}")
-    print("-"*50)
-    
-    for pid, player in data["players"].items():
-        attended = len(player.get("attendance", []))
-        pct = (attended / total_sessions * 100) if total_sessions > 0 else 0
-        print(f"{player['name']:<25} {attended:<10} {pct:.1f}%")
-
-def practice_management(data):
-    while True:
-        options = [
-            "Add Practice Session",
-            "Mark Attendance",
-            "View Attendance Report",
-            "View All Practice Sessions"
-        ]
-        print_menu("PRACTICE & ATTENDANCE", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            break
-        elif choice == 1:
-            add_practice_session(data)
-        elif choice == 2:
-            mark_attendance(data)
-        elif choice == 3:
-            view_attendance_report(data)
-        elif choice == 4:
-            print_header("ALL PRACTICE SESSIONS")
-            for session in data["practice_sessions"]:
-                print(f"\n📅 {session['date']} | ⏰ {session['time']}")
-                print(f"   📍 {session['venue']} | 🏏 {session['type']}")
-                print(f"   👥 Attendees: {len(session.get('attendees', []))}")
-                if session.get('notes'):
-                    print(f"   📝 {session['notes']}")
-        
-        press_enter()
-
-# ==================== TEAM SETTINGS ====================
-def team_settings(data):
-    while True:
-        print_header("TEAM SETTINGS")
-        print(f"\n🏏 Current Team Name: {data['team_name']}")
-        print(f"👥 Total Players: {len(data['players'])}")
-        print(f"📅 Total Matches: {len(data['matches'])}")
-        
-        options = [
-            "Change Team Name",
-            "Reset All Statistics",
-            "Export Data (Display)",
-            "Delete All Data"
-        ]
-        print_menu("SETTINGS", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            break
-        elif choice == 1:
-            new_name = get_input("Enter new team name")
-            data["team_name"] = new_name
-            save_data(data)
-            print(f"✅ Team name changed to '{new_name}'!")
-        elif choice == 2:
-            confirm = input("⚠️ Reset all player statistics? (yes/no): ").lower()
-            if confirm == 'yes':
-                for pid in data["players"]:
-                    data["players"][pid]["stats"] = {
-                        "matches": 0, "runs": 0, "balls_faced": 0,
-                        "fours": 0, "sixes": 0, "highest_score": 0,
-                        "fifties": 0, "hundreds": 0, "not_outs": 0,
-                        "wickets": 0, "balls_bowled": 0, "runs_given": 0,
-                        "best_bowling": "0/0", "catches": 0,
-                        "stumpings": 0, "run_outs": 0
-                    }
-                save_data(data)
-                print("✅ All statistics reset!")
-        elif choice == 3:
-            print("\n📄 DATA EXPORT:")
-            print("-"*40)
-            print(json.dumps(data, indent=2))
-        elif choice == 4:
-            confirm = input("⚠️ DELETE ALL DATA? Type 'DELETE' to confirm: ")
-            if confirm == 'DELETE':
-                data = get_default_data()
-                save_data(data)
-                print("✅ All data deleted!")
-        
-        press_enter()
-    
-    return data
-
-# ==================== QUICK ACTIONS ====================
-def quick_score_calculator():
-    print_header("QUICK SCORE CALCULATOR")
-    
-    print("\n🏏 Enter batting details:")
-    runs = get_number("Total Runs")
-    balls = get_number("Total Balls")
-    wickets = get_number("Wickets")
-    overs_bowled = balls // 6
-    remaining_balls = balls % 6
-    
-    print(f"\n📊 Score: {runs}/{wickets} ({overs_bowled}.{remaining_balls} overs)")
-    
-    if balls > 0:
-        run_rate = (runs / balls) * 6
-        print(f"📈 Run Rate: {run_rate:.2f}")
-    
-    # Projection
-    target_overs = get_number("\nProject score for overs (0 to skip)")
-    if target_overs > 0:
-        projected = int(run_rate * target_overs)
-        print(f"🎯 Projected Score in {target_overs} overs: ~{projected}")
-
-def run_rate_calculator():
-    print_header("RUN RATE CALCULATOR")
-    
-    print("\n🎯 Required Run Rate Calculator")
-    target = get_number("Target Score")
-    current_score = get_number("Current Score")
-    overs_remaining = get_number("Overs Remaining", allow_float=True)
-    
-    runs_needed = target - current_score
-    
-    if overs_remaining > 0:
-        rrr = runs_needed / overs_remaining
-        print(f"\n📊 Runs Needed: {runs_needed}")
-        print(f"📈 Required Run Rate: {rrr:.2f}")
-        print(f"⚡ Runs per ball: {runs_needed / (overs_remaining * 6):.2f}")
-    else:
-        print("❌ No overs remaining!")
-
-def quick_actions():
-    while True:
-        options = [
-            "Quick Score Calculator",
-            "Run Rate Calculator",
-            "Toss Simulator"
-        ]
-        print_menu("QUICK ACTIONS", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            break
-        elif choice == 1:
-            quick_score_calculator()
-        elif choice == 2:
-            run_rate_calculator()
-        elif choice == 3:
-            import random
-            print_header("TOSS SIMULATOR")
-            input("\n🪙 Press Enter to flip the coin...")
-            result = random.choice(["HEADS", "TAILS"])
-            print(f"\n🎉 Result: {result}!")
-        
-        press_enter()
-
-# ==================== ANNOUNCEMENTS ====================
-def announcements_menu(data):
-    while True:
-        print_header("ANNOUNCEMENTS")
-        
-        # Show recent announcements
-        if data["announcements"]:
-            print("\n📢 Recent Announcements:")
-            print("-"*40)
-            for ann in data["announcements"][-5:]:
-                print(f"\n📌 [{ann['date']}] {ann['title']}")
-                print(f"   {ann['message']}")
-        
-        options = [
-            "Add New Announcement",
-            "View All Announcements",
-            "Clear All Announcements"
-        ]
-        print_menu("ANNOUNCEMENTS", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            break
-        elif choice == 1:
-            announcement = {
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "title": get_input("Title"),
-                "message": get_input("Message")
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
             }
-            data["announcements"].append(announcement)
-            save_data(data)
-            print("✅ Announcement added!")
-        elif choice == 2:
-            for ann in data["announcements"]:
-                print(f"\n📌 [{ann['date']}] {ann['title']}")
-                print(f"   {ann['message']}")
-        elif choice == 3:
-            data["announcements"] = []
-            save_data(data)
-            print("✅ All announcements cleared!")
-        
-        press_enter()
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
 
-# ==================== DASHBOARD ====================
-def show_dashboard(data):
-    print_header(f"DASHBOARD - {data['team_name']}")
-    
-    # Quick stats
-    total_players = len(data["players"])
-    total_matches = len(data["matches"])
-    completed_matches = len([m for m in data["matches"] if m["status"] == "completed"])
-    upcoming_matches = len([m for m in data["matches"] if m["status"] == "scheduled"])
-    wins = len([m for m in data["matches"] if "won" in m.get("result", "")])
-    
-    print(f"""
-    ╔══════════════════════════════════════════════════════╗
-    ║  👥 Players: {total_players:<5}  📅 Matches: {total_matches:<5}  ✅ Wins: {wins:<5}   ║
-    ║  🎯 Upcoming: {upcoming_matches:<5}  ✔️ Completed: {completed_matches:<5}             ║
-    ╚══════════════════════════════════════════════════════╝
-    """)
-    
-    # Recent announcements
-    if data["announcements"]:
-        print("📢 Latest Announcement:")
-        ann = data["announcements"][-1]
-        print(f"   [{ann['date']}] {ann['title']}")
-    
-    # Upcoming match
-    upcoming = [m for m in data["matches"] if m["status"] == "scheduled"]
-    if upcoming:
-        next_match = upcoming[0]
-        print(f"\n🏏 Next Match: vs {next_match['opponent']} on {next_match['date']}")
-        print(f"   📍 {next_match['venue']} | ⏰ {next_match['time']}")
-    
-    # Top performers
-    if data["players"]:
-        top_scorer = max(data["players"].values(), key=lambda x: x["stats"]["runs"])
-        top_bowler = max(data["players"].values(), key=lambda x: x["stats"]["wickets"])
-        print(f"\n🌟 Top Run Scorer: {top_scorer['name']} ({top_scorer['stats']['runs']} runs)")
-        print(f"🌟 Top Wicket Taker: {top_bowler['name']} ({top_bowler['stats']['wickets']} wickets)")
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
 
-# ==================== MAIN MENU ====================
-def main():
-    data = load_data()
-    
-    while True:
-        clear_screen()
-        show_dashboard(data)
-        
-        options = [
-            "👥 Player Management",
-            "🏏 Match Management",
-            "📊 Statistics & Leaderboards",
-            "💰 Financial Management",
-            "📅 Practice & Attendance",
-            "📢 Announcements",
-            "⚡ Quick Actions",
-            "⚙️ Team Settings"
-        ]
-        print_menu("MAIN MENU", options)
-        choice = get_choice(len(options))
-        
-        if choice == 0:
-            print("\n👋 Thank you for using Gully Cricket Manager!")
-            print("   All data has been saved. Goodbye!")
-            break
-        elif choice == 1:
-            player_management(data)
-        elif choice == 2:
-            match_management(data)
-        elif choice == 3:
-            statistics_menu(data)
-        elif choice == 4:
-            financial_management(data)
-        elif choice == 5:
-            practice_management(data)
-        elif choice == 6:
-            announcements_menu(data)
-        elif choice == 7:
-            quick_actions()
-        elif choice == 8:
-            data = team_settings(data)
-        
-        # Reload data in case of changes
-        data = load_data()
+        nav.scrolled {
+            background: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
+        }
 
-# ==================== RUN THE PROGRAM ====================
-if __name__ == "__main__":
-    print("""
-    ╔══════════════════════════════════════════════════════════╗
-    ║                                                          ║
-    ║     🏏 GULLY CRICKET TEAM MANAGEMENT SYSTEM 🏏          ║
-    ║                                                          ║
-    ║         Manage your cricket team like a pro!             ║
-    ║                                                          ║
-    ╚══════════════════════════════════════════════════════════╝
-    """)
-    main()
-      
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--white);
+            text-decoration: none;
+        }
+
+        .logo i {
+            font-size: 2rem;
+            color: var(--accent);
+        }
+
+        .logo span {
+            background: var(--gradient3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--white);
+            text-decoration: none;
+            font-weight: 500;
+            position: relative;
+            padding: 5px 0;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent);
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .mobile-menu {
+            display: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 100px 20px;
+            position: relative;
+        }
+
+        .hero-content {
+            max-width: 900px;
+            animation: fadeInUp 1s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .hero h1 .highlight {
+            background: var(--gradient3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            color: var(--gray);
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: var(--gradient1);
+            color: var(--white);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(233, 69, 96, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--white);
+            border: 2px solid var(--accent);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent);
+            transform: translateY(-3px);
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            margin-top: 60px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            background: var(--gradient3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-label {
+            color: var(--gray);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Section Styles */
+        section {
+            padding: 100px 50px;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+
+        .section-header h2 span {
+            color: var(--accent);
+        }
+
+        .section-header p {
+            color: var(--gray);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Players Section */
+        #players {
+            background: var(--secondary);
+        }
+
+        .players-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .player-card {
+            background: var(--primary);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(233, 69, 96, 0.1);
+        }
+
+        .player-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--gradient1);
+        }
+
+        .player-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border-color: var(--accent);
+        }
+
+        .player-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--gradient1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2.5rem;
+            color: var(--white);
+            position: relative;
+        }
+
+        .player-jersey {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            width: 35px;
+            height: 35px;
+            background: var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .player-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .player-role {
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .player-stats {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .player-stat {
+            text-align: center;
+        }
+
+        .player-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .player-stat-label {
+            font-size: 0.75rem;
+            color: var(--gray);
+            text-transform: uppercase;
+        }
+
+        /* Matches Section */
+        #matches {
+            background: var(--primary);
+        }
+
+        .matches-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .match-card {
+            background: var(--secondary);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .match-card:hover {
+            border-color: var(--accent);
+            transform: scale(1.02);
+        }
+
+        .match-teams {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .team {
+            text-align: center;
+        }
+
+        .team-logo {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: var(--gradient1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 1.5rem;
+        }
+
+        .team-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .vs {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .match-info {
+            text-align: center;
+        }
+
+        .match-date {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .match-venue {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .match-status {
+            padding: 10px 25px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .status-upcoming {
+            background: rgba(255, 215, 0, 0.2);
+            color: var(--gold);
+        }
+
+        .status-won {
+            background: rgba(0, 200, 83, 0.2);
+            color: var(--success);
+        }
+
+        .status-lost {
+            background: rgba(233, 69, 96, 0.2);
+            color: var(--accent);
+        }
+
+        /* Stats Section */
+        #stats {
+            background: var(--secondary);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .stats-card {
+            background: var(--primary);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(transparent, rgba(233, 69, 96, 0.1), transparent 30%);
+            animation: rotate 4s linear infinite;
+        }
+
+        @keyframes rotate {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .stats-card-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .stats-icon {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: var(--gradient1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 1.8rem;
+        }
+
+        .stats-value {
+            font-size: 3rem;
+            font-weight: 800;
+            background: var(--gradient3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stats-label {
+            color: var(--gray);
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Gallery Section */
+        #gallery {
+            background: var(--primary);
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .gallery-item {
+            height: 250px;
+            border-radius: 20px;
+            background: var(--gradient1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gallery-item:hover {
+            transform: scale(1.05);
+        }
+
+        .gallery-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .gallery-item:hover::before {
+            opacity: 1;
+        }
+
+        .gallery-item span {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .gallery-item:hover span {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Contact Section */
+        #contact {
+            background: var(--secondary);
+        }
+
+        .contact-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .contact-form {
+            background: var(--primary);
+            border-radius: 20px;
+            padding: 50px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 2px solid rgba(233, 69, 96, 0.2);
+            background: var(--secondary);
+            color: var(--white);
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 40px;
+        }
+
+        .social-link {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--gradient1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: var(--white);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .social-link:hover {
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 10px 20px rgba(233, 69, 96, 0.3);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--primary);
+            padding: 30px 50px;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        footer p {
+            color: var(--gray);
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 15px 20px;
+            }
+
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                width: 100%;
+                background: var(--secondary);
+                flex-direction: column;
+                padding: 20px;
+                gap: 15px;
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+
+            .mobile-menu {
+                display: block;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .hero-stats {
+                gap: 30px;
+            }
+
+            section {
+                padding: 60px 20px;
+            }
+
+            .section-header h2 {
+                font-size: 2rem;
+            }
+
+            .match-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .contact-form {
+                padding: 30px 20px;
+            }
+        }
+
+        /* Loader */
+        .loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .loader-content {
+            text-align: center;
+        }
+
+        .loader-ball {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--gradient1);
+            animation: bounce 0.6s infinite alternate;
+        }
+
+        @keyframes bounce {
+            to {
+                transform: translateY(-30px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loader -->
+    <div class="loader" id="loader">
+        <div class="loader-content">
+            <div class="loader-ball"></div>
+            <p style="margin-top: 20px; color: var(--accent);">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Animated Background -->
+    <div class="bg-animation" id="bg-animation"></div>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <a href="#" class="logo">
+            <i class="fas fa-cricket"></i>
+            <span>Gully Warriors</span>
+        </a>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#players">Players</a></li>
+            <li><a href="#matches">Matches</a></li>
+            <li><a href="#stats">Stats</a></li>
+            <li><a href="#gallery">Gallery</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+        <div class="mobile-menu" id="mobileMenu">
+            <i class="fas fa-bars"></i>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <h1>Welcome to<br><span class="highlight">Gully Warriors CC</span></h1>
+            <p>The most legendary gully cricket team in the neighborhood. We don't just play cricket, we live it! 🏏</p>
+            <div class="hero-buttons">
+                <a href="#players" class="btn btn-primary">
+                    <i class="fas fa-users"></i> Meet the Team
+                </a>
+                <a href="#matches" class="btn btn-secondary">
+                    <i class="fas fa-calendar"></i> View Matches
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="matchCount">50+</div>
+                    <div class="stat-label">Matches Played</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="winCount">38</div>
+                    <div class="stat-label">Victories</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="playerCount">15</div>
+                    <div class="stat-label">Squad Members</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">5</div>
+                    <div class="stat-label">Trophies</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Players Section -->
+    <section id="players">
+        <div class="section-header fade-in">
+            <h2>Our <span>Champions</span></h2>
+            <p>Meet the warriors who bring glory to our team with their exceptional skills</p>
+        </div>
+        <div class="players-grid" id="playersGrid">
+            <!-- Players will be loaded here -->
+        </div>
+    </section>
+
+    <!-- Matches Section -->
+    <section id="matches">
+        <div class="section-header fade-in">
+            <h2>Match <span>Schedule</span></h2>
+            <p>Our upcoming battles and glorious victories</p>
+        </div>
+        <div class="matches-container" id="matchesContainer">
+            <!-- Matches will be loaded here -->
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section id="stats">
+        <div class="section-header fade-in">
+            <h2>Team <span>Statistics</span></h2>
+            <p>Numbers that speak louder than words</p>
+        </div>
+        <div class="stats-grid">
+            <div class="stats-card fade-in">
+                <div class="stats-card-content">
+                    <div class="stats-icon">
+                        <i class="fas fa-baseball-ball"></i>
+                    </div>
+                    <div class="stats-value" id="totalRuns">5,420</div>
+                    <div class="stats-label">Total Runs</div>
+                </div>
+            </div>
+            <div class="stats-card fade-in">
+                <div class="stats-card-content">
+                    <div class="stats-icon">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <div class="stats-value" id="totalWickets">312</div>
+                    <div class="stats-label">Wickets Taken</div>
+                </div>
+            </div>
+            <div class="stats-card fade-in">
+                <div class="stats-card-content">
+                    <div class="stats-icon">
+                        <i class="fas fa-hand-paper"></i>
+                    </div>
+                    <div class="stats-value" id="totalCatches">156</div>
+                    <div class="stats-label">Catches</div>
+                </div>
+            </div>
+            <div class="stats-card fade-in">
+                <div class="stats-card-content">
+                    <div class="stats-icon">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <div class="stats-value">76%</div>
+                    <div class="stats-label">Win Rate</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery Section -->
+    <section id="gallery">
+        <div class="section-header fade-in">
+            <h2>Photo <span>Gallery</span></h2>
+            <p>Memorable moments from our journey</p>
+        </div>
+        <div class="gallery-grid">
+            <div class="gallery-item fade-in" style="background: linear-gradient(135deg, #e94560, #ff6b6b);">
+                🏆 <span>Championship Win 2024</span>
+            </div>
+            <div class="gallery-item fade-in" style="background: linear-gradient(135deg, #0f3460, #16213e);">
+                🏏 <span>Team Practice</span>
+            </div>
+            <div class="gallery-item fade-in" style="background: linear-gradient(135deg, #ffd700, #ff9500);">
+                🎉 <span>Victory Celebration</span>
+            </div>
+            <div class="gallery-item fade-in" style="background: linear-gradient(135deg, #00c853, #1de9b6);">
+                👥 <span>Team Photo</span>
+            </div>
+            <div class="gallery-item fade-in" style="background: linear-gradient(135deg, #9c27b0, #e040fb);">
+                💯 <span>Century Celebration</span>
+            </div>
+            <div class="gallery-item fade-in" style="background: linear-gradient(135deg, #2196f3, #03a9f4);">
+                🎳 <span>Bowling Masterclass</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact">
+        <div class="section-header fade-in">
+            <h2>Get in <span>Touch</span></h2>
+            <p>Want to challenge us? Or join our squad?</p>
+        </div>
+        <div class="contact-container">
+            <form class="contact-form fade-in" id="contactForm">
+                <div class="form-group">
+                    <label for="name"><i class="fas fa-user"></i> Your Name</label>
+                    <input type="text" id="name" placeholder="Enter your name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email"><i class="fas fa-envelope"></i> Email Address</label>
+                    <input type="email" id="email" placeholder="Enter your email" required>
+                </div>
+                <div class="form-group">
+                    <label for="message"><i class="fas fa-comment"></i> Message</label>
+                    <textarea id="message" placeholder="Your message..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-paper-plane"></i> Send Message
+                </button>
+            </form>
+            <div class="social-links">
+                <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                <a href="#" class="social-link"><i class="fab fa-whatsapp"></i></a>
+                <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
+                <a href="#" class="social-link"><i class="fab fa-youtube"></i></a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2024 Gully Warriors CC. Made with ❤️ by <a href="#">Team Captain</a></p>
+    </footer>
+
+    <script>
+        // ==================== DATA ====================
+        const players = [
+            { name: "Rahul Sharma", role: "Captain / Batsman", jersey: 7, runs: 1250, wickets: 15, catches: 22, icon: "👨‍✈️" },
+            { name: "Amit Patel", role: "Vice Captain / All-Rounder", jersey: 45, runs: 890, wickets: 45, catches: 18, icon: "🧔" },
+            { name: "Vikas Singh", role: "Opening Batsman", jersey: 10, runs: 980, wickets: 0, catches: 12, icon: "👦" },
+            { name: "Mohit Kumar", role: "Fast Bowler", jersey: 99, runs: 120, wickets: 78, catches: 8, icon: "💪" },
+            { name: "Sanjay Gupta", role: "Spin Bowler", jersey: 23, runs: 340, wickets: 92, catches: 15, icon: "🎯" },
+            { name: "Rajesh Yadav", role: "Wicket Keeper", jersey: 1, runs: 560, wickets: 0, catches: 45, icon: "🧤" },
+            { name: "Deepak Verma", role: "Middle Order Batsman", jersey: 18, runs: 720, wickets: 5, catches: 14, icon: "🏃" },
+            { name: "Arun Joshi", role: "All-Rounder", jersey: 33, runs: 560, wickets: 42, catches: 22, icon: "⭐" }
+        ];
+
+        const matches = [
+            { opponent: "Street Kings XI", date: "Dec 25, 2024", venue: "Central Ground", status: "upcoming", score: "" },
+            { opponent: "Colony Challengers", date: "Dec 20, 2024", venue: "Park Ground", status: "won", score: "145/3 vs 120/10" },
+            { opponent: "Mohalla Masters", date: "Dec 15, 2024", venue: "School Ground", status: "won", score: "180/5 vs 175/8" },
+            { opponent: "Lane Warriors", date: "Dec 10, 2024", venue: "Central Ground", status: "lost", score: "132/10 vs 135/4" },
+            { opponent: "Block Blazers", date: "Dec 5, 2024", venue: "Park Ground", status: "won", score: "165/4 vs 140/10" }
+        ];
+
+        // ==================== LOADER ====================
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('loader').classList.add('hidden');
+            }, 1500);
+        });
+
+        // ==================== BACKGROUND ANIMATION ====================
+        function createBgAnimation() {
+            const bg = document.getElementById('bg-animation');
+            for (let i = 0; i < 20; i++) {
+                const span = document.createElement('span');
+                span.style.left = Math.random() * 100 + '%';
+                span.style.animationDelay = Math.random() * 15 + 's';
+                span.style.width = Math.random() * 30 + 10 + 'px';
+                span.style.height = span.style.width;
+                bg.appendChild(span);
+            }
+        }
+        createBgAnimation();
+
+        // ==================== NAVBAR ====================
+        const navbar = document.getElementById('navbar');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const navLinks = document.getElementById('navLinks');
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        mobileMenu.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+        });
+
+        // Close mobile menu when clicking a link
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('active');
+            });
+        });
+
+        // ==================== LOAD PLAYERS ====================
+        function loadPlayers() {
+            const grid = document.getElementById('playersGrid');
+            players.forEach((player, index) => {
+                const card = document.createElement('div');
+                card.className = 'player-card fade-in';
+                card.style.animationDelay = `${index * 0.1}s`;
+                card.innerHTML = `
+                    <div class="player-avatar">
+                        ${player.icon}
+                        <span class="player-jersey">${player.jersey}</span>
+                    </div>
+                    <h3 class="player-name">${player.name}</h3>
+                    <p class="player-role">${player.role}</p>
+                    <div class="player-stats">
+                        <div class="player-stat">
+                            <div class="player-stat-value">${player.runs}</div>
+                            <div class="player-stat-label">Runs</div>
+                        </div>
+                        <div class="player-stat">
+                            <div class="player-stat-value">${player.wickets}</div>
+                            <div class="player-stat-label">Wickets</div>
+                        </div>
+                        <div class="player-stat">
+                            <div class="player-stat-value">${player.catches}</div>
+                            <div class="player-stat-label">Catches</div>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+        loadPlayers();
+
+        // ==================== LOAD MATCHES ====================
+        function loadMatches() {
+            const container = document.getElementById('matchesContainer');
+            matches.forEach((match, index) => {
+                const card = document.createElement('div');
+                card.className = 'match-card fade-in';
+                card.style.animationDelay = `${index * 0.1}s`;
+                
+                let statusClass = 'status-upcoming';
+                let statusText = '🗓️ Upcoming';
+                if (match.status === 'won') {
+                    statusClass = 'status-won';
+                    statusText = '✅ Won';
+                } else if (match.status === 'lost') {
+                    statusClass = 'status-lost';
+                    statusText = '❌ Lost';
+                }
+
+                card.innerHTML = `
+                    <div class="match-teams">
+                        <div class="team">
+                            <div class="team-logo">🏏</div>
+                            <div class="team-name">Gully Warriors</div>
+                        </div>
+                        <div class="vs">VS</div>
+                        <div class="team">
+                            <div class="team-logo">⚔️</div>
+                            <div class="team-name">${match.opponent}</div>
+                        </div>
+                    </div>
+                    <div class="match-info">
+                        <div class="match-date">📅 ${match.date}</div>
+                        <div class="match-venue">📍 ${match.venue}</div>
+                        ${match.score ? `<div class="match-score" style="margin-top: 5px; color: var(--gold);">${match.score}</div>` : ''}
+                    </div>
+                    <span class="match-status ${statusClass}">${statusText}</span>
+                `;
+                container.appendChild(card);
+            });
+        }
+        loadMatches();
+
+        // ==================== SCROLL ANIMATIONS ====================
+        function handleScrollAnimations() {
+            const elements = document.querySelectorAll('.fade-in');
+            elements.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                const windowHeight = window.innerHeight;
+                if (rect.top < windowHeight * 0.8) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', handleScrollAnimations);
+        handleScrollAnimations();
+
+        // ==================== COUNTER ANIMATION ====================
+        function animateCounter(element, target, duration = 2000) {
+            let start = 0;
+            const increment = target / (duration / 16);
+            
+            function updateCounter() {
+                start += increment;
+                if (start < target) {
+                    element.textContent = Math.floor(start).toLocaleString();
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    element.textContent = target.toLocaleString();
+                }
+            }
+            updateCounter();
+        }
+
+        // Animate stats when visible
+        const statsObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const statsSection = entry.target;
+                    animateCounter(document.getElementById('totalRuns'), 5420);
+                    animateCounter(document.getElementById('totalWickets'), 312);
+                    animateCounter(document.getElementById('totalCatches'), 156);
+                    statsObserver.unobserve(statsSection);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        statsObserver.observe(document.getElementById('stats'));
+
+        // ==================== CONTACT FORM ====================
+        document.getElementById('contactForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const message = document.getElementById('message').value;
+            
+            // Show success message
+            alert(`Thanks ${name}! 🏏\n\nYour message has been received.\nWe'll get back to you soon!`);
+            
+            // Reset form
+            e.target.reset();
+        });
+
+        // ==================== SMOOTH SCROLL ====================
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // ==================== DYNAMIC YEAR ====================
+        document.querySelector('footer p').innerHTML = 
+            `&copy; ${new Date().getFullYear()} Gully Warriors CC. Made with ❤️ by <a href="#">Team Captain</a>`;
+    </script>
+</body>
+</html>
